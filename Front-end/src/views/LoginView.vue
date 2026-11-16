@@ -36,7 +36,7 @@ const finishSocialLogin = async () => {
     const { data: user } = await api.get(`/users/${payload.userId}/profile`)
     sessionStorage.setItem('auth_user', JSON.stringify(user))
     window.dispatchEvent(new Event('auth-changed'))
-    await router.replace(user.role === 'admin' ? '/admin' : '/profile')
+    await router.replace(['admin', 'instructor'].includes(user.role) ? '/admin' : '/profile')
   } catch (_error) {
     sessionStorage.removeItem('auth_token')
     sessionStorage.removeItem('auth_user')
@@ -55,19 +55,23 @@ const submitLogin = async () => {
 
   try {
     const { data } = await api.post('/users/login', form)
-    if (data?.user) {
-      sessionStorage.setItem('auth_user', JSON.stringify(data.user))
+    if (!data || typeof data !== 'object' || !data.token || !data.user) {
+      throw new Error(
+        'Invalid API response. Please check that VITE_API_URL on Render points to your Backend Web Service URL.'
+      )
     }
 
-    if (data?.token) {
-      sessionStorage.setItem('auth_token', data.token)
-    }
+    sessionStorage.setItem('auth_user', JSON.stringify(data.user))
+    sessionStorage.setItem('auth_token', data.token)
 
     message.value = data.message || 'Login successful.'
     window.dispatchEvent(new Event('auth-changed'))
-    router.push(data?.user?.role === 'admin' ? '/admin' : '/profile')
+    await router.push(['admin', 'instructor'].includes(data.user.role) ? '/admin' : '/profile')
   } catch (error) {
-    message.value = error?.response?.data?.error || 'Unable to sign in right now.'
+    message.value =
+      error?.response?.data?.error ||
+      error?.message ||
+      'Unable to sign in right now.'
   } finally {
     loading.value = false
   }
