@@ -10,10 +10,12 @@
     "format": "oxfmt src/"
   },
   "dependencies": {
+    "@vueup/vue-quill": "^1.5.5",
     "axios": "^1.21.1",
     "chart.js": "^4.6.1",
     "dompurify": "^3.4.18",
     "marked": "^18.2.0",
+    "quill": "^2.0.3",
     "sweetalert2": "^11.26.25",
     "vue": "^3.5.32",
     "vue-chartjs": "^5.3.4",
