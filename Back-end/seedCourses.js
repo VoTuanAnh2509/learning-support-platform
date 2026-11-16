@@ -6,8 +6,7 @@ require('dotenv').config();
 
 const { Course } = require('./models/projectModels');
 
-const MONGO_URI = 'mongodb+srv://anhvt:Conan4869@cluster0.7rolvvh.mongodb.net/learning-support-platformDB?retryWrites=true&w=majority';
-
+const MONGO_URI = const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
 async function seedDatabase() {
     try {
         console.log('🔄 Đang kết nối tới cơ sở dữ liệu MongoDB...');
