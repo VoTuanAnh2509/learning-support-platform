@@ -1,0 +1,23 @@
+{
+  "name": "Admin Bootstrap (Thunder Client)",
+  "description": "Import this file into Thunder Client or copy the request settings.",
+  "request": {
+    "method": "POST",
+    "url": "http://localhost:3000/api/admin/bootstrap",
+    "headers": {
+      "Content-Type": "application/json",
+      "x-admin-setup-key": "dev_admin_setup_key_CHANGE_ME"
+    },
+    "body": {
+      "mode": "raw",
+      "raw": {
+        "name": "Site Admin",
+        "email": "admin@example.com",
+        "password": "Admin123!",
+        "bio": "Initial administrator account",
+        "proficiency": "advanced"
+      }
+    }
+  },
+  "curl": "curl -X POST 'http://localhost:3000/api/admin/bootstrap' -H 'Content-Type: application/json' -H 'x-admin-setup-key: dev_admin_setup_key_CHANGE_ME' -d '{\"name\":\"Site Admin\",\"email\":\"admin@example.com\",\"password\":\"Admin123!\",\"bio\":\"Initial administrator account\"}'"
+}

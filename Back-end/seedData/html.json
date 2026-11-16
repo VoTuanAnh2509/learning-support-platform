@@ -1,0 +1,299 @@
+{
+  "title": "HTML Tutorial",
+  "subject": "Web Development",
+  "description": "A comprehensive, beginner-friendly course that covers HTML from foundational page structures to advanced web layouts.",
+  "difficulty": "beginner",
+  "category": "information-technology",
+  "tags": ["html", "frontend", "web"],
+  "prerequisites": [],
+  "isPublished": true,
+  "modules": [
+    {
+      "title": "HTML Introduction & Basics",
+      "description": "Get started with HTML, understand what it stands for, and discover the fundamental document structure.",
+      "order": 1,
+      "lessons": [
+        {
+          "title": "HTML Home",
+          "overview": "Welcome to the world of Web Development. This lesson introduces the absolute basics of HTML.",
+          "content": "<h2>HTML Tutorial</h2>\n<p>HTML is the standard markup language for creating web pages.</p>\n<p>With HTML, you can build your own professional website structure from scratch.</p>\n<p>This tutorial is easy to understand, well-structured, and designed for step-by-step learning.</p>",
+          "codeExamples": [
+            "<!DOCTYPE html>\n<html>\n<head>\n  <title>My First Web Page</title>\n</head>\n<body>\n  <h1>Welcome to HTML</h1>\n  <p>This is my first paragraph.</p>\n</body>\n</html>"
+          ],
+          "codeExplanations": [
+      "<ul><li><code>&lt;!DOCTYPE html&gt;</code> declares that this document is an HTML5 document.</li><li><code>&lt;html&gt;</code> is the root element of an HTML page.</li><li><code>&lt;head&gt;</code> contains meta information about the HTML page.</li><li><code>&lt;body&gt;</code> defines the document's body, and is a container for all the visible contents.</li></ul>"
+    ],
+          "order": 1,
+          "estimatedMinutes": 5,
+          "tags": ["home", "basics"],
+          "quizzes": [
+            {
+              "question": "What is the primary function of HTML in web development?",
+              "options": [
+                "To define the layout and structure of a web page",
+                "To style elements with custom colors and fonts",
+                "To add interactive programmatic logic and functions",
+                "To manage secure database connections and server states"
+              ],
+              "answerIndex": 0,
+              "explanation": "HTML stands for Hyper Text Markup Language and is used strictly to structure web content.",
+              "points": 5
+            },
+            {
+              "question": "Which tag wraps all the visible content displayed on a web browser screen?",
+              "options": ["<head>", "<body>", "<html>", "<title>"],
+              "answerIndex": 1,
+              "explanation": "The body element contains all the visible content of an HTML document, such as text, images, and links.",
+              "points": 5
+            },
+            {
+              "question": "True or False: HTML functions as a dynamic programming language.",
+              "options": ["True", "False"],
+              "answerIndex": 1,
+              "explanation": "HTML is a markup language, not a programming language, because it does not have logic, conditions, or loops.",
+              "points": 5
+            }
+          ]
+        },
+        {
+          "title": "HTML Introduction",
+          "overview": "Learn the official definition of HTML and how browsers read markup tags.",
+         "content": "<h2>HTML Introduction</h2>\n<p><strong>HTML</strong> stands for <strong>Hyper Text Markup Language</strong>.</p>\n<ul>\n<li>HTML is the standard markup language for creating Web pages.</li>\n<li>HTML describes the structure of a Web page.</li>\n<li>HTML consists of a series of elements.</li>\n<li>HTML elements tell the browser how to display the content.</li>\n<li>HTML elements label pieces of content such as headings, paragraphs, links, images, and more.</li>\n</ul>\n<p>HTML acts as the skeleton of any website. Instead of programming logic, HTML uses pre-defined <strong>elements</strong> and tags to instruct web browsers on how text and media should be rendered on screen.</p>\n<p>For example, HTML elements can indicate:</p>\n<ul>\n<li>&quot;This is a heading&quot; using heading tags.</li>\n<li>&quot;This is a paragraph&quot; using paragraph tags.</li>\n<li>&quot;This is a link&quot; using anchor tags.</li>\n<li>&quot;This is an image&quot; using image tags.</li>\n</ul>\n<p>Browsers read these HTML elements and display the content according to the structure defined by the markup.</p>",
+          "codeExamples": [
+            "<!DOCTYPE html>\n<html>\n<body>\n  <h1>An Introduction</h1>\n  <p>Browsers read tags but do not display them directly.</p>\n</body>\n</html>"
+          ],
+          "codeExplanations": [
+  "<ul><li><strong>&lt;!DOCTYPE html&gt;</strong> tells the browser that this document uses HTML5.</li><li><strong>&lt;html&gt;</strong> is the root element of the page.</li><li><strong>&lt;body&gt;</strong> contains all visible content.</li><li><strong>&lt;h1&gt;</strong> creates the main heading.</li><li><strong>&lt;p&gt;</strong> creates a paragraph.</li></ul>"
+],
+          "order": 2,
+          "estimatedMinutes": 8,
+          "tags": ["intro", "definition"],
+          "quizzes": [
+            {
+              "question": "What does HTML officially stand for?",
+              "options": [
+                "Hyper Text Markup Language",
+                "Home Tool Markup Language",
+                "Hyperlinks and Text Markup Language",
+                "Hyper Tool Management Language"
+              ],
+              "answerIndex": 0,
+              "explanation": "HTML represents Hyper Text Markup Language.",
+              "points": 5
+            },
+            {
+              "question": "Do web browsers directly display the raw HTML tags (e.g., <html>, <body>) on the page?",
+              "options": [
+                "Yes, browsers always print raw markup text",
+                "No, browsers hide tags and use them to render the layout structure",
+                "Only when an error occurs in the CSS file",
+                "Only inside heading elements"
+              ],
+              "answerIndex": 1,
+              "explanation": "Browsers read HTML documents and translate tags into visible layout structures; the tags themselves are never visible.",
+              "points": 5
+            },
+            {
+              "question": "Who maintains the global standards and specifications for HTML?",
+              "options": ["Google", "Microsoft", "W3C (World Wide Web Consortium)", "Oracle"],
+              "answerIndex": 2,
+              "explanation": "The World Wide Web Consortium (W3C) and WHATWG maintain the standards for HTML.",
+              "points": 5
+            }
+          ]
+        },
+        {
+          "title": "HTML Basic Structure",
+          "overview": "Analyze the structural template required for every valid HTML document.",
+          "content": "<h2>HTML Basic Structure</h2>\n<p>A standard HTML page template must follow a rigid hierarchy. It begins with a declaration tag, followed sequentially by nested structural elements.</p>\n<p>The core hierarchy consists of: <code>&lt;!DOCTYPE html&gt;</code>, followed by <code>&lt;html&gt;</code>, which wraps the <code>&lt;head&gt;</code> (metadata) and the <code>&lt;body&gt;</code> (renderable items).</p>",
+          "codeExamples": [
+            "<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Standard Layout</title>\n</head>\n<body>\n  <h2>Document Body</h2>\n</body>\n</html>"
+          ],
+          "codeExplanations": [
+      "<ul><li><code>&lt;meta charset=\"UTF-8\"&gt;</code> specifies the character encoding for the HTML document, ensuring text is displayed correctly.</li><li>The <code>&lt;head&gt;</code> block is processed by the browser first to load metadata before rendering the <code>&lt;body&gt;</code> to the user.</li></ul>"
+    ],
+          "order": 3,
+          "estimatedMinutes": 10,
+          "tags": ["structure", "doctype"],
+          "quizzes": [
+            {
+              "question": "What is the primary purpose of the <!DOCTYPE html> declaration?",
+              "options": [
+                "To create a visible heading at the top of the webpage",
+                "To tell the browser that the document type is HTML5",
+                "To link an external JavaScript file to the system",
+                "To define a secure database encryption algorithm"
+              ],
+              "answerIndex": 1,
+              "explanation": "The doctype declaration is an instruction to the web browser that the page is written in modern HTML5.",
+              "points": 5
+            },
+            {
+              "question": "Which tag contains metadata about the page that is NOT directly visible to website visitors?",
+              "options": ["<body>", "<nav>", "<head>", "<footer>"],
+              "answerIndex": 2,
+              "explanation": "The head element contains configuration, styles, character encoding, and titles, which are hidden from the primary viewport.",
+              "points": 5
+            },
+            {
+              "question": "What is the correct structural order of the primary outer HTML elements?",
+              "options": [
+                "html -> head -> body",
+                "head -> body -> html",
+                "body -> head -> html",
+                "html -> body -> head"
+              ],
+              "answerIndex": 0,
+              "explanation": "The html tag acts as the root, wrapping the head block first, followed directly by the body block.",
+              "points": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "HTML Elements & Attributes",
+      "description": "Master tag syntax, element nesting rules, and custom data configurations.",
+      "order": 2,
+      "modules": [],
+      "lessons": [
+        {
+          "title": "HTML Elements",
+          "overview": "Understand the syntax of tags and how nesting elements creates a render tree.",
+          "content": "<h2>HTML Elements</h2>\n<p>An HTML element is everything from the start tag to the end tag:</p>\n<p><code>&lt;tagname&gt; Content goes here... &lt;/tagname&gt;</code></p>\n<p>Elements can be nested inside other elements (meaning elements can contain other elements). All HTML documents consist of nested HTML elements.</p>",
+          "codeExamples": [
+            "<p>This is a <strong>nested bold</strong> element within a paragraph.</p>"
+          ],
+          "codeExplanations": [
+      "<ul><li>The <code>&lt;strong&gt;</code> element is nested directly inside the <code>&lt;p&gt;</code> element.</li><li>Browsers will render the text wrapped inside <code>&lt;strong&gt;</code> with a bold font weight, highlighting its importance.</li></ul>"
+    ],
+          "order": 1,
+          "estimatedMinutes": 10,
+          "tags": ["elements", "syntax", "nesting"],
+          "quizzes": [
+            {
+              "question": "Which character is strictly required inside a closing tag to differentiate it from an opening tag?",
+              "options": ["A backslash (\\)", "A forward slash (/)", "An exclamation mark (!)", "A question mark (?)"],
+              "answerIndex": 1,
+              "explanation": "An HTML end tag always contains a forward slash right after the opening angle bracket.",
+              "points": 5
+            },
+            {
+              "question": "What happens if you omit or forget the closing tag on an HTML element?",
+              "options": [
+                "The computer will crash immediately",
+                "The server rejects the connection",
+                "Unexpected layout bugs or rendering errors may occur in the browser",
+                "The browser automatically converts the code to JavaScript"
+              ],
+              "answerIndex": 2,
+              "explanation": "Many modern browsers will try to automatically fix missing tags, but it often leads to unpredictable layout rendering bugs.",
+              "points": 5
+            },
+            {
+              "question": "Which of the following statements about empty HTML elements is correct?",
+              "options": [
+                "They require a mandatory text content block",
+                "They are elements with no content and do not require a closing tag",
+                "They cannot accept any attributes",
+                "They are completely ignored by search engines"
+              ],
+              "answerIndex": 1,
+              "explanation": "Empty elements, such as <br> or <img>, have no inner content text and do not require a closing tag.",
+              "points": 5
+            }
+          ]
+        },
+        {
+          "title": "HTML Attributes",
+          "overview": "Learn how attributes modify properties and provide extra metadata to tags.",
+          "content": "<h2>HTML Attributes</h2>\n<p>Attributes provide additional settings and parameters for HTML elements.</p>\n<ul>\n  <li>All HTML elements can have attributes.</li>\n  <li>Attributes are <strong>always specified in the start tag</strong>.</li>\n  <li>They usually come in name/value pairs like: <code>name=\"value\"</code>.</li>\n</ul>",
+          "codeExamples": [
+            "<a href=\"https://www.w3schools.com\">Visit W3Schools</a>\n<img src=\"img_girl.jpg\" width=\"500\" height=\"600\" alt=\"Girl portrait\">"
+          ],
+          "codeExplanations": [
+            "<ul><li>The <code>href</code> attribute specifies the URL of the page the link goes to.</li><li>The <code>src</code> attribute specifies the path to the image file.</li><li>The <code>width</code> and <code>height</code> attributes define the dimensions of the image.</li><li>The <code>alt</code> attribute provides alternative text for the image.</li></ul>"
+          ],
+          "order": 2,
+          "estimatedMinutes": 12,
+          "tags": ["attributes", "href", "src"],
+          "quizzes": [
+            {
+              "question": "Where should HTML attributes always be placed inside an element?",
+              "options": [
+                "Inside the opening/start tag",
+                "Inside the closing/end tag",
+                "Directly in between the tags",
+                "At the very end of the document body"
+              ],
+              "answerIndex": 0,
+              "explanation": "All HTML attributes must be declared strictly inside the start tag of an element.",
+              "points": 5
+            },
+            {
+              "question": "Which attribute must be declared inside an <a> tag to specify the target link URL?",
+              "options": ["src", "href", "link", "target_url"],
+              "answerIndex": 1,
+              "explanation": "The 'href' (hypertext reference) attribute defines the destination address of an HTML hyperlink.",
+              "points": 5
+            },
+            {
+              "question": "What is the main purpose of the 'alt' attribute inside an <img> tag?",
+              "options": [
+                "To apply custom CSS styling animations",
+                "To define alternative text if an image fails to load or for screen readers",
+                "To change the optical contrast of the graphic",
+                "To rotate the picture on user click events"
+              ],
+              "answerIndex": 1,
+              "explanation": "The 'alt' attribute provides fallback descriptive text for accessibility tools (screen readers) and acts as placeholder text if the file is missing.",
+              "points": 5
+            }
+          ]
+        },
+        {
+          "title": "HTML Headings and Paragraphs",
+          "overview": "Organize text hierarchy on screen using distinct headings and body blocks.",
+          "content": "<h2>HTML Headings and Paragraphs</h2>\n<p>Headings are defined with the <code>&lt;h1&gt;</code> to <code>&lt;h6&gt;</code> tags. <code>&lt;h1&gt;</code> defines the most important heading, while <code>&lt;h6&gt;</code> defines the least important heading.</p>\n<p>Paragraphs are defined with the <code>&lt;p&gt;</code> tag. Browsers automatically add an empty line (margin) before and after a paragraph element.</p>",
+          "codeExamples": [
+            "<h1>Main Article Title</h1>\n<p>This is the first paragraph introducing the topic.</p>\n<h2>Sub-section Heading</h2>\n<p>Another text block goes here.</p>"
+          ],
+          "codeExplanations": [
+            "<ul><li><code>&lt;h1&gt;</code> is the most important heading, typically used for the main title of the page.</li><li><code>&lt;h2&gt;</code> is used for sub-section headings.</li><li><code>&lt;h6&gt;</code> is the least important heading, used for minor sub-headings.</li></ul>"
+          ],
+          "order": 3,
+          "estimatedMinutes": 8,
+          "tags": ["headings", "paragraphs", "text"],
+          "quizzes": [
+            {
+              "question": "Which heading tag represents the largest, most structurally important title on a page?",
+              "options": ["<h6>", "<h1>", "<head>", "<header>"],
+              "answerIndex": 1,
+              "explanation": "<h1> represents the top-level main heading, while <h6> is the smallest sub-heading.",
+              "points": 5
+            },
+            {
+              "question": "How do web browsers treat default margins around an HTML <p> element?",
+              "options": [
+                "They collapse all margins to zero text spacing",
+                "They automatically append white space before and after the paragraph block",
+                "They force the paragraphs to align inside a flex grid layout",
+                "They hide the text until a script triggers an interaction"
+              ],
+              "answerIndex": 1,
+              "explanation": "Browsers automatically add margin space around paragraphs to visually separate text content cleanly.",
+              "points": 5
+            },
+            {
+              "question": "True or False: Using heading tags purely to make text look big or bold is highly recommended for SEO.",
+              "options": ["True", "False"],
+              "answerIndex": 1,
+              "explanation": "False. Heading tags should be used strictly for logical structure and document hierarchy. For cosmetic formatting, use CSS styling instead.",
+              "points": 5
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

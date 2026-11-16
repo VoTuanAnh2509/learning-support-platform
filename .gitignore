@@ -1,0 +1,10 @@
+# Bỏ qua thư viện nặng
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Bảo mật tuyệt đối biến môi trường (API Keys, MongoDB URI, Secrets)
+.env
+**/.env
+.env.*

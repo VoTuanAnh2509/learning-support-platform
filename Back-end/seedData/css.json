@@ -1,0 +1,138 @@
+{
+  "title": "CSS Tutorial",
+  "subject": "Web Development",
+  "description": "A beginner-friendly course that introduces CSS from styling fundamentals to modern layout techniques.",
+  "difficulty": "beginner",
+  "category": "information-technology",
+  "tags": ["css", "frontend", "web", "design"],
+  "prerequisites": ["HTML basics"],
+  "isPublished": true,
+  "modules": [
+    {
+      "title": "CSS Foundations",
+      "description": "Core syntax and styling concepts for CSS.",
+      "order": 1,
+      "lessons": [
+        {
+          "title": "CSS Home",
+          "overview": "An overview of the CSS learning path.",
+          "content": "<h2>CSS Tutorial</h2>\n<p>CSS controls how a page looks: spacing, color, layout, and visual hierarchy.</p>\n<p>You use CSS to turn a plain HTML page into a polished user interface.</p>",
+          "codeExamples": [
+            "h1 {\n  color: #0f766e;\n  font-size: 2.5rem;\n}\n\np {\n  line-height: 1.7;\n  color: #334155;\n}"
+          ],
+          "codeExplanations": [
+            "<ul><li>The <code>h1</code> selector targets all <code>&lt;h1&gt;</code> elements, applying a teal color and larger font size.</li><li>The <code>p</code> selector targets all <code>&lt;p&gt;</code> elements, setting line height for readability and a dark gray color.</li></ul>"
+          ],
+          "order": 1,
+          "estimatedMinutes": 6,
+          "tags": ["intro", "basics"]
+        },
+        {
+          "title": "CSS Introduction",
+          "overview": "What CSS is and how it connects to HTML.",
+          "content": "<h2>CSS Introduction</h2>\n<p><strong>CSS</strong> stands for <em>Cascading Style Sheets</em>.</p>\n<p>It describes how HTML elements should be displayed on screen, on paper, or in other media.</p>",
+          "codeExamples": [
+            "body {\n  font-family: Arial, sans-serif;\n  background: #f8fafc;\n}"
+          ],
+          "codeExplanations": [
+            "<ul><li>The <code>body</code> selector targets the entire page container, setting the default font and background color.</li></ul>"
+          ],
+          "order": 2,
+          "estimatedMinutes": 8,
+          "tags": ["intro", "syntax"],
+          "quizzes": [
+            {
+              "question": "What does CSS stand for?",
+              "options": [
+                "Cascading Style Sheets",
+                "Creative Style System",
+                "Computer Style Sheets",
+                "Colorful Style Syntax"
+              ],
+              "answerIndex": 0,
+              "explanation": "CSS stands for Cascading Style Sheets.",
+              "points": 10
+            }
+          ]
+        },
+        {
+          "title": "CSS Syntax",
+          "overview": "How CSS rules are written and organized.",
+          "content": "<h2>CSS Syntax</h2>\n<p>A CSS rule set contains a selector and a declaration block with property-value pairs.</p>\n<p>Selectors target the elements you want to style, and declarations define the visual result.</p>",
+          "codeExamples": [
+            "h1 {\n  color: #1d4ed8;\n  margin-bottom: 1rem;\n}"
+          ],
+          "codeExplanations": [
+            "<ul><li>The <code>h1</code> selector targets all <code>&lt;h1&gt;</code> elements, applying a blue color and bottom margin.</li></ul>"
+          ],
+          "order": 3,
+          "estimatedMinutes": 10,
+          "tags": ["syntax", "selectors"]
+        }
+      ]
+    },
+    {
+      "title": "CSS Layout and Responsiveness",
+      "description": "Modern layout systems and responsive design techniques.",
+      "order": 2,
+      "lessons": [
+        {
+          "title": "CSS Selectors",
+          "overview": "Selectors target elements by tag, class, id, state, or relationship.",
+          "content": "<h2>CSS Selectors</h2>\n<p>Selectors let you apply styles to specific HTML elements, classes, IDs, and pseudo-classes.</p>",
+          "codeExamples": [
+            ".card {\n  border-radius: 20px;\n}\n\n#hero {\n  padding: 2rem;\n}\n\nnav a:hover {\n  text-decoration: underline;\n}"
+          ],
+          "codeExplanations": [
+            "<ul><li>The <code>.card</code> selector targets all elements with the class 'card', applying a rounded border.</li><li>The <code>#hero</code> selector targets the element with the ID 'hero', setting padding.</li><li>The <code>nav a:hover</code> selector targets anchor tags within a nav element when hovered, adding an underline.</li></ul>"
+          ],
+          "order": 1,
+          "estimatedMinutes": 10,
+          "tags": ["selectors", "state"]
+        },
+        {
+          "title": "CSS Box Model",
+          "overview": "How content, padding, border, and margin work together.",
+          "content": "<h2>CSS Box Model</h2>\n<p>Every element is content plus padding, border, and margin.</p>\n<p>Understanding the box model is essential for predictable spacing and layout.</p>",
+          "codeExamples": [
+            ".box {\n  margin: 1rem;\n  padding: 1.5rem;\n  border: 1px solid #cbd5e1;\n}"
+          ],
+          "codeExplanations": [
+            "<ul><li>The <code>.box</code> selector targets all elements with the class 'box', applying margin, padding, and a border.</li></ul>"
+          ],
+          "order": 2,
+          "estimatedMinutes": 9,
+          "tags": ["box-model", "spacing"]
+        },
+        {
+          "title": "CSS Layout",
+          "overview": "Layout tools such as display, gap, alignment, and positioning shape the page structure.",
+          "content": "<h2>CSS Layout</h2>\n<p>Modern CSS gives you flexbox, grid, and positioning tools for building responsive interfaces.</p>",
+          "codeExamples": [
+            ".layout {\n  display: grid;\n  grid-template-columns: 280px minmax(0, 1fr);\n  gap: 1.5rem;\n}"
+          ],
+          "codeExplanations": [
+            "<ul><li>The <code>.layout</code> selector targets all elements with the class 'layout', setting a grid display with specific column widths and gaps.</li></ul>"
+          ],
+          "order": 3,
+          "estimatedMinutes": 12,
+          "tags": ["layout", "grid", "flexbox"]
+        },
+        {
+          "title": "CSS Responsive Design",
+          "overview": "Responsive CSS adapts the UI to smaller screens using media queries and fluid sizing.",
+          "content": "<h2>CSS Responsive Design</h2>\n<p>Responsive CSS helps a layout adapt to phones, tablets, and desktop screens.</p>",
+          "codeExamples": [
+            "@media (max-width: 768px) {\n  .layout {\n    grid-template-columns: 1fr;\n  }\n}"
+          ],
+          "codeExplanations": [
+            "<ul><li>The <code>@media</code> rule applies styles only when the viewport width is 768px or less.</li><li>The <code>.layout</code> selector targets all elements with the class 'layout', changing the grid column layout to a single column on smaller screens.</li></ul>"
+          ],
+          "order": 4,
+          "estimatedMinutes": 11,
+          "tags": ["responsive", "media-queries"]
+        }
+      ]
+    }
+  ]
+}

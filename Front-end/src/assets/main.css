@@ -1,0 +1,45 @@
+@import './base.css';
+
+#app {
+  min-height: 100vh;
+  padding: 1.25rem 1.25rem 0;
+  font-weight: normal;
+}
+
+a {
+  text-decoration: none;
+  transition: 0.4s;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+body {
+  background: linear-gradient(180deg, #e3f1e7 0%, #dff0e3 52%, #f4ead0 100%);
+}
+
+#app:has(.admin-page),
+#app:has(.profile-page) {
+  padding: 0;
+}
+
+#app:has(.admin-page) .app-shell,
+#app:has(.profile-page) .app-shell {
+  gap: 0;
+}
+
+#app:has(.admin-page) .footer,
+#app:has(.profile-page) .footer {
+  margin: 0;
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  #app {
+    padding: 0.75rem 0.75rem 0;
+  }
+}
