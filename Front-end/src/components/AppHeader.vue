@@ -10,15 +10,7 @@ const authUser = ref(null)
 const showUserMenu = ref(false)
 const userMenuRef = ref(null)
 
-// === 1. GLOBAL SEARCH STATES ===
-const searchQuery = ref('')
-const searchResults = ref([])
-const searching = ref(false)
-const showSearchDropdown = ref(false)
-const searchRef = ref(null)
-let searchDebounceTimer = null
-
-// === 2. NOTIFICATION STATES ===
+// === ADMIN LOGIN NOTIFICATION STATES ===
 const notifications = ref([])
 const showNotificationMenu = ref(false)
 const notificationRef = ref(null)
@@ -29,7 +21,7 @@ const unreadCount = computed(() => notifications.value.filter(item => !item.isRe
 const loadAuthUser = () => {
   const storedUser = sessionStorage.getItem('auth_user')
   authUser.value = storedUser ? JSON.parse(storedUser) : null
-  if (authUser.value && sessionStorage.getItem('auth_token')) {
+  if (authUser.value?.role === 'admin' && sessionStorage.getItem('auth_token')) {
     loadNotifications()
   } else {
     notifications.value = []
@@ -37,7 +29,7 @@ const loadAuthUser = () => {
 }
 
 const loadNotifications = async () => {
-  if (!sessionStorage.getItem('auth_token')) return
+  if (!sessionStorage.getItem('auth_token') || authUser.value?.role !== 'admin') return
   try {
     const { data } = await api.get('/notifications')
     notifications.value = Array.isArray(data) ? data : []
@@ -46,53 +38,11 @@ const loadNotifications = async () => {
   }
 }
 
-// Lắng nghe sự kiện tìm kiếm với debounce 250ms
-watch(searchQuery, value => {
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
-  const trimmed = value.trim()
-  if (!trimmed) {
-    searchResults.value = []
-    searching.value = false
-    return
-  }
-
-  searching.value = true
-  showSearchDropdown.value = true
-  searchDebounceTimer = setTimeout(async () => {
-    try {
-      const { data } = await api.get('/search', { params: { q: trimmed } })
-      searchResults.value = Array.isArray(data?.results) ? data.results : []
-    } catch (_error) {
-      searchResults.value = []
-    } finally {
-      searching.value = false
-    }
-  }, 250)
-})
-
-const selectSearchResult = item => {
-  showSearchDropdown.value = false
-  searchQuery.value = ''
-  searchResults.value = []
-  if (item?.path) {
-    router.push(item.path)
-  }
-}
-
-const handleSearch = () => {
-  const trimmed = searchQuery.value.trim()
-  showSearchDropdown.value = false
-  if (trimmed) {
-    router.push({ path: '/courses', query: { q: trimmed } })
-  } else {
-    router.push('/courses')
-  }
-}
-
 const toggleNotificationMenu = () => {
   showNotificationMenu.value = !showNotificationMenu.value
   if (showNotificationMenu.value) {
     showUserMenu.value = false
+    loadNotifications()
   }
 }
 
@@ -120,10 +70,14 @@ const markAllAsRead = async () => {
   }
 }
 
-const getNotificationIcon = type => {
-  if (type === 'ai_report') return '✨'
-  if (type === 'reminder') return '🔥'
-  return '📢'
+const formatNotifTime = value => {
+  if (!value) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
 }
 
 // Lắng nghe sự kiện đăng nhập/đăng xuất từ các component khác
@@ -137,9 +91,6 @@ const handleClickOutside = event => {
   if (userMenuRef.value && !userMenuRef.value.contains(event.target)) {
     showUserMenu.value = false
   }
-  if (searchRef.value && !searchRef.value.contains(event.target)) {
-    showSearchDropdown.value = false
-  }
   if (notificationRef.value && !notificationRef.value.contains(event.target)) {
     showNotificationMenu.value = false
   }
@@ -152,7 +103,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
   window.removeEventListener('auth-changed', handleAuthChanged)
   document.removeEventListener('click', handleClickOutside)
 })
@@ -199,56 +149,13 @@ const handleLogout = async () => {
         <span class="brand-text">Learning Support</span>
       </RouterLink>
 
-      <!-- 2. MAIN NAVIGATION & GLOBAL SEARCH -->
+      <!-- 2. MAIN NAVIGATION -->
       <div class="center-nav-group">
         <nav class="main-nav">
           <RouterLink to="/" class="nav-link">Home</RouterLink>
           <RouterLink to="/courses" class="nav-link">Courses</RouterLink>
           <RouterLink to="/about" class="nav-link">About Us</RouterLink>
         </nav>
-
-        <!-- GLOBAL SEARCH BAR (Auto-suggest) -->
-        <div ref="searchRef" class="global-search-wrapper">
-          <div class="global-search-box">
-            <svg class="search-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              v-model="searchQuery"
-              type="search"
-              class="global-search-input"
-              placeholder="Search tutorials, e.g. flex, html..."
-              aria-label="Search courses and lessons"
-              @focus="searchQuery.trim() && (showSearchDropdown = true)"
-              @keyup.enter="handleSearch"
-            />
-          </div>
-
-          <!-- AUTO-SUGGEST DROPDOWN -->
-          <div v-if="showSearchDropdown && searchQuery.trim()" class="search-suggest-dropdown" role="listbox">
-            <div v-if="searching" class="search-state-msg">Searching courses & lessons...</div>
-            <div v-else-if="searchResults.length === 0" class="search-state-msg">
-              No lessons or courses found for "{{ searchQuery }}".
-            </div>
-            <template v-else>
-              <button
-                v-for="item in searchResults"
-                :key="item.id"
-                type="button"
-                class="search-suggest-item"
-                @click="selectSearchResult(item)"
-              >
-                <span class="suggest-badge" :class="item.type.toLowerCase()">{{ item.type }}</span>
-                <div class="suggest-copy">
-                  <strong>{{ item.type }}: {{ item.title }}</strong>
-                  <small>{{ item.subtitle }}</small>
-                </div>
-                <span class="suggest-arrow" aria-hidden="true">→</span>
-              </button>
-            </template>
-          </div>
-        </div>
       </div>
 
       <!-- 3. USER ACTIONS (Góc phải) -->
@@ -261,13 +168,14 @@ const handleLogout = async () => {
 
         <!-- Khi đã đăng nhập -->
         <template v-else>
-          <!-- NOTIFICATION BELL ICON + BADGE -->
-          <div ref="notificationRef" class="notification-wrapper">
+          <!-- NOTIFICATION BELL ICON + BADGE (ADMIN ONLY: USER LOGIN ACTIVITY) -->
+          <div v-if="isAdmin" ref="notificationRef" class="notification-wrapper">
             <button
               type="button"
               class="bell-button"
               :class="{ active: showNotificationMenu }"
-              aria-label="Notifications"
+              aria-label="Admin User Login Notifications"
+              title="User Login Alerts (Admin Only)"
               @click="toggleNotificationMenu"
             >
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -281,8 +189,8 @@ const handleLogout = async () => {
             <div v-if="showNotificationMenu" class="notification-dropdown" role="menu">
               <div class="notification-header">
                 <div>
-                  <strong>Notifications</strong>
-                  <span v-if="unreadCount > 0" class="unread-pill">{{ unreadCount }} unread</span>
+                  <strong>User Sign-In Activity</strong>
+                  <span v-if="unreadCount > 0" class="unread-pill">{{ unreadCount }} new</span>
                 </div>
                 <button
                   v-if="unreadCount > 0"
@@ -295,7 +203,7 @@ const handleLogout = async () => {
               </div>
 
               <div v-if="notifications.length === 0" class="notification-empty">
-                You're all caught up! No notifications right now.
+                No recent user sign-in alerts right now.
               </div>
               <div v-else class="notification-list">
                 <button
@@ -306,13 +214,16 @@ const handleLogout = async () => {
                   :class="{ unread: !item.isRead }"
                   @click="handleNotificationClick(item)"
                 >
-                  <span class="notif-icon" :class="item.type">{{ getNotificationIcon(item.type) }}</span>
+                  <span class="notif-icon system">👤</span>
                   <div class="notif-content">
                     <div class="notif-title-row">
                       <strong>{{ item.title }}</strong>
                       <span v-if="!item.isRead" class="notif-dot" aria-label="Unread"></span>
                     </div>
                     <p>{{ item.message }}</p>
+                    <small v-if="item.createdAt" style="color: #94a3b8; font-size: 0.72rem;">
+                      {{ formatNotifTime(item.createdAt) }}
+                    </small>
                   </div>
                 </button>
               </div>

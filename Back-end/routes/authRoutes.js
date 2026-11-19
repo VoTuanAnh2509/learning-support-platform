@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const passport = require('../config/passport');
+const { notifyAdminsOfUserLogin } = require('../controllers/projectController');
 
 const router = express.Router();
 const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
@@ -28,7 +29,8 @@ router.get(
             failureRedirect: `${frontendUrl}/login?error=google_login_failed`,
         })(req, res, next);
     },
-    (req, res) => {
+    async (req, res) => {
+        await notifyAdminsOfUserLogin(req.user, 'login');
         const token = jwt.sign(
             { userId: req.user._id, role: req.user.role },
             process.env.JWT_SECRET || 'your_super_secret_key_for_development',
@@ -59,7 +61,8 @@ router.get(
             failureRedirect: `${frontendUrl}/login?error=facebook_login_failed`,
         })(req, res, next);
     },
-    (req, res) => {
+    async (req, res) => {
+        await notifyAdminsOfUserLogin(req.user, 'login');
         const token = jwt.sign(
             { userId: req.user._id, role: req.user.role },
             process.env.JWT_SECRET || 'your_super_secret_key_for_development',
@@ -90,7 +93,8 @@ router.get(
             failureRedirect: `${frontendUrl}/login?error=github_login_failed`,
         })(req, res, next);
     },
-    (req, res) => {
+    async (req, res) => {
+        await notifyAdminsOfUserLogin(req.user, 'login');
         const token = jwt.sign(
             { userId: req.user._id, role: req.user.role },
             process.env.JWT_SECRET || 'your_super_secret_key_for_development',

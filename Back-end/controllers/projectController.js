@@ -403,6 +403,8 @@ exports.registerUser = asyncHandler(async (req, res) => {
         { expiresIn: '7d' }
     );
 
+    await notifyAdminsOfUserLogin(user, 'register');
+
     const safeUser = user.toObject();
     delete safeUser.password;
     res.status(201).json({
@@ -521,6 +523,8 @@ exports.loginUser = asyncHandler(async (req, res) => {
     }
     user.lastLoginAt = new Date();
     await user.save();
+
+    await notifyAdminsOfUserLogin(user, 'login');
 
     // 3. Tạo Payload (thông tin gói gọn trong token)
     const payload = {
@@ -1381,7 +1385,7 @@ exports.globalSearch = asyncHandler(async (req, res) => {
     res.json({ results: results.slice(0, 10) });
 });
 
-// 2. NOTIFICATIONS: Lấy danh sách thông báo & đánh dấu đã đọc
+// 2. NOTIFICATIONS (ADMIN ONLY): Báo cho Admin biết khi có người dùng mới đăng nhập / đăng ký
 const getUserIdFromToken = req => {
     const token = getTokenFromRequest(req);
     if (!token) return null;
@@ -1393,44 +1397,87 @@ const getUserIdFromToken = req => {
     }
 };
 
+const formatProviderLabel = provider => {
+    const key = String(provider || 'local').toLowerCase();
+    return {
+        local: 'Email',
+        google: 'Google',
+        facebook: 'Facebook',
+        github: 'GitHub',
+    }[key] || 'Email';
+};
+
+const notifyAdminsOfUserLogin = async (loggedInUser, actionType = 'login') => {
+    try {
+        if (!loggedInUser) return;
+        const admins = await User.find({ role: 'admin' }).select('_id').lean();
+        if (!admins.length) return;
+
+        const providerLabel = formatProviderLabel(loggedInUser.authProvider);
+        const roleLabel = loggedInUser.role === 'admin' ? 'Admin' : loggedInUser.role === 'instructor' ? 'Instructor' : 'Learner';
+        const title = actionType === 'register' ? 'New User Registered & Signed In' : 'User Signed In';
+        const message = `${loggedInUser.name || 'User'} (${loggedInUser.email}) [${roleLabel}] signed in via ${providerLabel}.`;
+
+        const docs = admins.map(admin => ({
+            user: admin._id,
+            type: 'system',
+            title,
+            message,
+            link: '/admin/users',
+            isRead: false,
+        }));
+
+        await Notification.insertMany(docs);
+    } catch (err) {
+        console.error('Failed to notify admins of user login:', err.message || err);
+    }
+};
+
+exports.notifyAdminsOfUserLogin = notifyAdminsOfUserLogin;
+
 exports.listNotifications = asyncHandler(async (req, res) => {
     const userId = getUserIdFromToken(req);
     if (!userId) {
         return res.status(401).json({ error: 'Authorization required.' });
     }
 
+    const currentUser = await User.findById(userId).select('role').lean();
+    if (!currentUser || currentUser.role !== 'admin') {
+        return res.json([]);
+    }
+
+    // Dọn dẹp 3 thông báo mẫu cũ của học viên nếu còn tồn tại
+    await Notification.deleteMany({
+        user: userId,
+        title: { $in: ['AI Report', 'Study Reminder', 'System Update'] },
+    });
+
     let notifications = await Notification.find({ user: userId }).sort({ createdAt: -1 }).limit(20).lean();
 
-    // Khởi tạo 3 thông báo mẫu tiếng Anh nếu tài khoản chưa có thông báo nào
+    // Nếu chưa có thông báo đăng nhập nào, khởi tạo từ các user vừa đăng nhập gần nhất
     if (notifications.length === 0) {
-        const defaultItems = [
-            {
-                user: userId,
-                type: 'ai_report',
-                title: 'AI Report',
-                message: 'Your weekly learning summary from AI Mentor is ready to view!',
-                link: '/profile/insights',
-                isRead: false,
-            },
-            {
-                user: userId,
-                type: 'reminder',
-                title: 'Study Reminder',
-                message: 'Keep your coding streak alive! Continue your HTML lessons today.',
-                link: '/learn/html',
-                isRead: false,
-            },
-            {
-                user: userId,
-                type: 'system',
-                title: 'System Update',
-                message: 'Interactive coding exercises and quizzes are ready for practice.',
-                link: '/',
-                isRead: false,
-            },
-        ];
-        await Notification.insertMany(defaultItems);
-        notifications = await Notification.find({ user: userId }).sort({ createdAt: -1 }).limit(20).lean();
+        const recentUsers = await User.find({ lastLoginAt: { $ne: null } })
+            .sort({ lastLoginAt: -1 })
+            .limit(5)
+            .lean();
+
+        if (recentUsers.length > 0) {
+            const seedItems = recentUsers.map(u => {
+                const providerLabel = formatProviderLabel(u.authProvider);
+                const roleLabel = u.role === 'admin' ? 'Admin' : u.role === 'instructor' ? 'Instructor' : 'Learner';
+                return {
+                    user: userId,
+                    type: 'system',
+                    title: 'User Signed In',
+                    message: `${u.name || 'User'} (${u.email}) [${roleLabel}] signed in via ${providerLabel}.`,
+                    link: '/admin/users',
+                    isRead: false,
+                    createdAt: u.lastLoginAt || u.updatedAt || new Date(),
+                };
+            });
+            await Notification.insertMany(seedItems);
+            notifications = await Notification.find({ user: userId }).sort({ createdAt: -1 }).limit(20).lean();
+        }
     }
 
     res.json(notifications);

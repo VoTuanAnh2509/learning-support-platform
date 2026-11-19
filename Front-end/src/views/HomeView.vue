@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import LanguageShowcase from '@/components/LanguageShowcase.vue'
 import api from '@/services/api'
@@ -7,6 +7,11 @@ import api from '@/services/api'
 const router = useRouter()
 const authUser = ref(null)
 const heroSearch = ref('')
+const searchResults = ref([])
+const searching = ref(false)
+const showSearchDropdown = ref(false)
+const heroSearchRef = ref(null)
+let searchDebounceTimer = null
 const activeSnippetTab = ref('html')
 const courseCount = ref(3)
 const totalLessonsCount = ref(24)
@@ -56,14 +61,55 @@ const loadPlatformStats = async () => {
 
 const handleAuthChanged = () => loadAuthUser()
 
+const handleClickOutside = event => {
+  if (heroSearchRef.value && !heroSearchRef.value.contains(event.target)) {
+    showSearchDropdown.value = false
+  }
+}
+
+watch(heroSearch, value => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+  const trimmed = value.trim()
+  if (!trimmed) {
+    searchResults.value = []
+    searching.value = false
+    return
+  }
+
+  searching.value = true
+  showSearchDropdown.value = true
+  searchDebounceTimer = setTimeout(async () => {
+    try {
+      const { data } = await api.get('/search', { params: { q: trimmed } })
+      searchResults.value = Array.isArray(data?.results) ? data.results : []
+    } catch (_error) {
+      searchResults.value = []
+    } finally {
+      searching.value = false
+    }
+  }, 250)
+})
+
+const selectSearchResult = item => {
+  showSearchDropdown.value = false
+  heroSearch.value = ''
+  searchResults.value = []
+  if (item?.path) {
+    router.push(item.path)
+  }
+}
+
 onMounted(() => {
   loadAuthUser()
   loadPlatformStats()
   window.addEventListener('auth-changed', handleAuthChanged)
+  document.addEventListener('click', handleClickOutside)
 })
 
 onBeforeUnmount(() => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
   window.removeEventListener('auth-changed', handleAuthChanged)
+  document.removeEventListener('click', handleClickOutside)
 })
 
 const displayName = computed(
@@ -72,6 +118,7 @@ const displayName = computed(
 
 const handleHeroSearch = () => {
   const q = heroSearch.value.trim()
+  showSearchDropdown.value = false
   if (q) {
     router.push({ path: '/courses', query: { q } })
   } else {
@@ -305,20 +352,53 @@ const features = [
             Master HTML, CSS, and JavaScript step by step with live browser code editors, practice quizzes, smart bookmarks, and an AI coding assistant.
           </p>
 
-          <!-- HERO SEARCH BAR (W3Schools style) -->
-          <form class="hero-search-bar" @submit.prevent="handleHeroSearch">
-            <svg class="hero-search-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              v-model="heroSearch"
-              type="search"
-              placeholder="Search tutorials, e.g. HTML Elements, CSS Flexbox, Forms..."
-              aria-label="Search coding tutorials"
-            />
-            <button type="submit" class="hero-search-btn">Explore ➔</button>
-          </form>
+          <!-- HERO SEARCH BAR WITH LIVE AUTO-SUGGEST -->
+          <div ref="heroSearchRef" class="hero-search-wrapper">
+            <form class="hero-search-bar" @submit.prevent="handleHeroSearch">
+              <svg class="hero-search-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                v-model="heroSearch"
+                type="search"
+                placeholder="Search tutorials, e.g. HTML Elements, CSS Flexbox, Forms..."
+                aria-label="Search coding tutorials"
+                @focus="heroSearch.trim() && (showSearchDropdown = true)"
+              />
+              <button type="submit" class="hero-search-btn">Explore ➔</button>
+            </form>
+
+            <!-- AUTO-SUGGEST DROPDOWN -->
+            <div
+              v-if="showSearchDropdown && heroSearch.trim()"
+              class="hero-suggest-dropdown"
+              role="listbox"
+            >
+              <div v-if="searching" class="hero-search-state">Searching courses & lessons...</div>
+              <div v-else-if="searchResults.length === 0" class="hero-search-state">
+                No lessons or courses found for "{{ heroSearch }}".
+              </div>
+              <template v-else>
+                <button
+                  v-for="item in searchResults"
+                  :key="item.id"
+                  type="button"
+                  class="hero-suggest-item"
+                  @click="selectSearchResult(item)"
+                >
+                  <span class="hero-suggest-badge" :class="item.type.toLowerCase()">
+                    {{ item.type }}
+                  </span>
+                  <div class="hero-suggest-copy">
+                    <strong>{{ item.type }}: {{ item.title }}</strong>
+                    <small>{{ item.subtitle }}</small>
+                  </div>
+                  <span class="hero-suggest-arrow" aria-hidden="true">→</span>
+                </button>
+              </template>
+            </div>
+          </div>
 
           <div class="popular-topics-row">
             <span class="popular-label">Popular:</span>
@@ -478,13 +558,15 @@ const features = [
   border-radius: 28px;
   padding: clamp(1.5rem, 3.8vw, 3rem);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  z-index: 5;
 }
 
 .hero-card::before {
   content: '';
   position: absolute;
   inset: 0;
+  border-radius: 28px;
   background:
     radial-gradient(circle at top right, rgba(17, 183, 122, 0.14), transparent 40%),
     radial-gradient(circle at bottom left, rgba(15, 118, 110, 0.08), transparent 35%);
@@ -548,18 +630,109 @@ h1 {
   line-height: 1.65;
 }
 
-/* HERO SEARCH BAR */
+/* HERO SEARCH BAR & AUTO-SUGGEST */
+.hero-search-wrapper {
+  position: relative;
+  margin-top: 1.4rem;
+  max-width: 560px;
+  z-index: 20;
+}
+
 .hero-search-bar {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 1.4rem;
   padding: 0.4rem 0.45rem 0.4rem 1.1rem;
   border-radius: 999px;
   background: #ffffff;
   border: 1.5px solid rgba(15, 118, 110, 0.25);
   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
-  max-width: 560px;
+}
+
+.hero-suggest-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.16);
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  z-index: 100;
+}
+
+.hero-search-state {
+  padding: 1rem;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.hero-suggest-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.hero-suggest-item:hover {
+  background: #f0fdf4;
+}
+
+.hero-suggest-badge {
+  padding: 0.24rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.hero-suggest-badge.course {
+  background: #dcfce7;
+  color: #047857;
+}
+
+.hero-suggest-badge.lesson {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.hero-suggest-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hero-suggest-copy strong {
+  font-size: 0.9rem;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero-suggest-copy small {
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+.hero-suggest-arrow {
+  color: #10b981;
+  font-weight: 800;
 }
 
 .hero-search-bar:focus-within {
