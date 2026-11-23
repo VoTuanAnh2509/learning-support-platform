@@ -1,6 +1,7 @@
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import api from '@/services/api'
+import { validateEmailSpelling } from '@/utils/emailValidator'
 
 const props = defineProps({
   profile: {
@@ -44,9 +45,29 @@ watch(
   { immediate: true }
 )
 
+const emailValidation = computed(() => {
+  if (!profileForm.email.trim() || !profileForm.email.includes('@')) {
+    return { valid: true, error: '', suggestedEmail: '' }
+  }
+  return validateEmailSpelling(profileForm.email)
+})
+
+const applySuggestedEmail = () => {
+  if (emailValidation.value.suggestedEmail) {
+    profileForm.email = emailValidation.value.suggestedEmail
+    profileMessage.value = ''
+  }
+}
+
 const saveProfile = async () => {
-  savingProfile.value = true
   profileMessage.value = ''
+  const emailCheck = validateEmailSpelling(profileForm.email)
+  if (!emailCheck.valid) {
+    profileMessage.value = emailCheck.error
+    return
+  }
+
+  savingProfile.value = true
   try {
     const { data } = await api.patch(`/users/${props.userId}/profile`, {
       name: profileForm.name.trim(),
@@ -118,6 +139,17 @@ const changePassword = async () => {
         <label class="field-label">
           Email address
           <input v-model="profileForm.email" type="email" autocomplete="email" required />
+          <span v-if="!emailValidation.valid" class="email-typo-alert">
+            ⚠️ {{ emailValidation.error }}
+            <button
+              v-if="emailValidation.suggestedEmail"
+              type="button"
+              class="fix-typo-btn"
+              @click="applySuggestedEmail"
+            >
+              Use {{ emailValidation.suggestedEmail }}
+            </button>
+          </span>
         </label>
         <label class="field-label">
           About you
@@ -322,6 +354,32 @@ const changePassword = async () => {
 
 .secondary-save {
   background: #607f54;
+}
+
+.email-typo-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #b45309;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.fix-typo-btn {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: none;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 @media (max-width: 900px) {

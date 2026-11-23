@@ -115,6 +115,9 @@ const togglePasswordVisibility = () => {
               <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
+          <div class="forgot-password-row">
+            <RouterLink to="/forgot-password" class="forgot-password-link">Forgot password?</RouterLink>
+          </div>
         </label>
 
         <button class="submit-button" type="submit" :disabled="loading">
@@ -297,6 +300,23 @@ input:focus {
 .helper-link a {
   color: #1d4ed8;
   font-weight: 700;
+}
+
+.forgot-password-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.2rem;
+}
+
+.forgot-password-link {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #0f766e;
+  text-decoration: none;
+}
+
+.forgot-password-link:hover {
+  text-decoration: underline;
 }
 
 .password-field {

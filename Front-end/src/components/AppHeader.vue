@@ -21,7 +21,7 @@ const unreadCount = computed(() => notifications.value.filter(item => !item.isRe
 const loadAuthUser = () => {
   const storedUser = sessionStorage.getItem('auth_user')
   authUser.value = storedUser ? JSON.parse(storedUser) : null
-  if (authUser.value?.role === 'admin' && sessionStorage.getItem('auth_token')) {
+  if (authUser.value && sessionStorage.getItem('auth_token')) {
     loadNotifications()
   } else {
     notifications.value = []
@@ -29,13 +29,20 @@ const loadAuthUser = () => {
 }
 
 const loadNotifications = async () => {
-  if (!sessionStorage.getItem('auth_token') || authUser.value?.role !== 'admin') return
+  if (!sessionStorage.getItem('auth_token')) return
   try {
     const { data } = await api.get('/notifications')
     notifications.value = Array.isArray(data) ? data : []
   } catch (_error) {
     // Bỏ qua lỗi nếu chưa đăng nhập hoặc token hết hạn
   }
+}
+
+const getNotificationIcon = item => {
+  if (item?.title?.includes('Signed In') || item?.title?.includes('Registered')) return '👤'
+  if (item?.type === 'ai_report') return '✨'
+  if (item?.type === 'reminder') return '🔥'
+  return '📢'
 }
 
 const toggleNotificationMenu = () => {
@@ -166,16 +173,16 @@ const handleLogout = async () => {
           <RouterLink to="/register" class="btn-register">Get Started</RouterLink>
         </template>
 
-        <!-- Khi đã đăng nhập -->
+        <!-- Khi đã đăng nhập: Tất cả các role (Learner, Instructor, Admin) đều có chuông thông báo -->
         <template v-else>
-          <!-- NOTIFICATION BELL ICON + BADGE (ADMIN ONLY: USER LOGIN ACTIVITY) -->
-          <div v-if="isAdmin" ref="notificationRef" class="notification-wrapper">
+          <!-- NOTIFICATION BELL ICON + BADGE -->
+          <div ref="notificationRef" class="notification-wrapper">
             <button
               type="button"
               class="bell-button"
               :class="{ active: showNotificationMenu }"
-              aria-label="Admin User Login Notifications"
-              title="User Login Alerts (Admin Only)"
+              aria-label="Notifications"
+              :title="isAdmin ? 'User Login Alerts (Admin Only)' : 'Notifications'"
               @click="toggleNotificationMenu"
             >
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -189,8 +196,8 @@ const handleLogout = async () => {
             <div v-if="showNotificationMenu" class="notification-dropdown" role="menu">
               <div class="notification-header">
                 <div>
-                  <strong>User Sign-In Activity</strong>
-                  <span v-if="unreadCount > 0" class="unread-pill">{{ unreadCount }} new</span>
+                  <strong>{{ isAdmin ? 'User Sign-In Activity' : 'Notifications' }}</strong>
+                  <span v-if="unreadCount > 0" class="unread-pill">{{ unreadCount }} unread</span>
                 </div>
                 <button
                   v-if="unreadCount > 0"
@@ -203,7 +210,7 @@ const handleLogout = async () => {
               </div>
 
               <div v-if="notifications.length === 0" class="notification-empty">
-                No recent user sign-in alerts right now.
+                {{ isAdmin ? 'No recent user sign-in alerts right now.' : "You're all caught up! No notifications right now." }}
               </div>
               <div v-else class="notification-list">
                 <button
@@ -214,7 +221,7 @@ const handleLogout = async () => {
                   :class="{ unread: !item.isRead }"
                   @click="handleNotificationClick(item)"
                 >
-                  <span class="notif-icon system">👤</span>
+                  <span class="notif-icon" :class="item.type">{{ getNotificationIcon(item) }}</span>
                   <div class="notif-content">
                     <div class="notif-title-row">
                       <strong>{{ item.title }}</strong>

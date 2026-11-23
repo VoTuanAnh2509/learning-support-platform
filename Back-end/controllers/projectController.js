@@ -8,8 +8,10 @@ const {
 } = require('../models/projectModels');
 
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const nodemailer = require('nodemailer');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Khởi tạo Gemini client bằng API Key
@@ -61,6 +63,104 @@ const verifyStaffUser = req =>
     verifyRoleUser(req, ['admin', 'instructor'], 'Staff (Instructor or Admin) access required.');
 
 const normalizeText = value => String(value || '').trim().toLowerCase();
+
+const COMMON_EMAIL_DOMAIN_TYPOS = {
+    'gmal.com': 'gmail.com',
+    'gmial.com': 'gmail.com',
+    'gmai.com': 'gmail.com',
+    'gamil.com': 'gmail.com',
+    'gnail.com': 'gmail.com',
+    'gmaill.com': 'gmail.com',
+    'gmaiil.com': 'gmail.com',
+    'gmali.com': 'gmail.com',
+    'gmaul.com': 'gmail.com',
+    'gmaol.com': 'gmail.com',
+    'gmaik.com': 'gmail.com',
+    'hmail.com': 'gmail.com',
+    'gmail.con': 'gmail.com',
+    'gmail.co': 'gmail.com',
+    'gmail.cm': 'gmail.com',
+    'gmail.cmo': 'gmail.com',
+    'gmail.ocm': 'gmail.com',
+    'gmail.comm': 'gmail.com',
+    'gmail.vom': 'gmail.com',
+    'gmail.xom': 'gmail.com',
+    'gmail.cim': 'gmail.com',
+    'gmail.vn': 'gmail.com',
+    'gmal.vn': 'gmail.com',
+    'yaho.com': 'yahoo.com',
+    'yahooo.com': 'yahoo.com',
+    'yahoo.con': 'yahoo.com',
+    'outlok.com': 'outlook.com',
+    'outlook.con': 'outlook.com',
+    'hotmal.com': 'hotmail.com',
+    'hotmail.con': 'hotmail.com',
+    'iclod.com': 'icloud.com',
+    'icloud.con': 'icloud.com',
+    'fpt.edu.v': 'fpt.edu.vn',
+    'fpt.edu.vm': 'fpt.edu.vn',
+};
+
+const levenshteinDistance = (a, b) => {
+    const m = a.length;
+    const n = b.length;
+    const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+    }
+    return dp[m][n];
+};
+
+const validateEmailSpelling = rawEmail => {
+    const trimmed = normalizeText(rawEmail);
+    if (!trimmed) {
+        return { valid: false, error: 'Email address is required.' };
+    }
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(trimmed)) {
+        return { valid: false, error: 'Please enter a valid email address (e.g. yourname@gmail.com).' };
+    }
+
+    const [localPart, domain] = trimmed.split('@');
+    if (COMMON_EMAIL_DOMAIN_TYPOS[domain]) {
+        const suggested = `${localPart}@${COMMON_EMAIL_DOMAIN_TYPOS[domain]}`;
+        return {
+            valid: false,
+            error: `Invalid email domain "@${domain}". Did you mean "${suggested}"?`,
+        };
+    }
+
+    const knownTargets = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com', 'fpt.edu.vn'];
+    if (!knownTargets.includes(domain)) {
+        const gmailDist = levenshteinDistance(domain, 'gmail.com');
+        if (
+            gmailDist > 0 &&
+            (gmailDist <= 2 || (domain.startsWith('gm') && domain !== 'gmx.com' && domain !== 'gmx.net'))
+        ) {
+            return {
+                valid: false,
+                error: `Misspelled Gmail domain "@${domain}". Did you mean "${localPart}@gmail.com"?`,
+            };
+        }
+        for (const target of knownTargets) {
+            if (target === 'gmail.com') continue;
+            if (levenshteinDistance(domain, target) === 1) {
+                return {
+                    valid: false,
+                    error: `Misspelled email domain "@${domain}". Did you mean "${localPart}@${target}"?`,
+                };
+            }
+        }
+    }
+
+    return { valid: true, error: '' };
+};
 
 const isBcryptHash = value => typeof value === 'string' && /^\$2[aby]\$/.test(value);
 
@@ -366,8 +466,50 @@ exports.deleteLesson = asyncHandler(async (req, res) => {
     res.json({ message: 'Lesson deleted successfully.' });
 });
 
+exports.checkEmailAvailability = asyncHandler(async (req, res) => {
+    const rawEmail = String(req.query.email || '').trim();
+    if (!rawEmail) {
+        return res.status(400).json({ error: 'Email is required.' });
+    }
+
+    const emailCheck = validateEmailSpelling(rawEmail);
+    if (!emailCheck.valid) {
+        return res.json({
+            exists: false,
+            valid: false,
+            error: emailCheck.error,
+        });
+    }
+
+    const normalizedEmail = normalizeText(rawEmail);
+    const existingUser = await User.findOne({ email: normalizedEmail })
+        .select('email authProvider')
+        .lean();
+
+    if (existingUser) {
+        const provider = formatProviderLabel(existingUser.authProvider);
+        return res.json({
+            exists: true,
+            valid: true,
+            authProvider: existingUser.authProvider || 'local',
+            message: `This email (${normalizedEmail}) is already registered${provider !== 'Email' ? ` via ${provider}` : ''}. Please sign in or use a different email.`,
+        });
+    }
+
+    return res.json({
+        exists: false,
+        valid: true,
+        message: 'This email is available.',
+    });
+});
+
 exports.registerUser = asyncHandler(async (req, res) => {
     const { name, email, password, bio, goals, interests, proficiency } = req.body;
+
+    const emailCheck = validateEmailSpelling(email);
+    if (!emailCheck.valid) {
+        return res.status(400).json({ error: emailCheck.error });
+    }
 
     if (typeof password !== 'string' || password.length < 8) {
         return res.status(400).json({ error: 'Password must be at least 8 characters.' });
@@ -376,7 +518,10 @@ exports.registerUser = asyncHandler(async (req, res) => {
     const existingUser = await User.findOne({ email: normalizeText(email) });
 
     if (existingUser) {
-        return res.status(409).json({ error: 'Email already registered.' });
+        const provider = formatProviderLabel(existingUser.authProvider);
+        return res.status(409).json({
+            error: `This email is already registered${provider !== 'Email' ? ` (via ${provider})` : ''}. Please sign in or use another email.`,
+        });
     }
 
     // 1. Tạo "muối" (salt) để tăng độ phức tạp cho mật khẩu
@@ -569,6 +714,24 @@ exports.updateUserProfile = asyncHandler(async (req, res) => {
         if (req.body[field] !== undefined) updates[field] = req.body[field];
     });
 
+    if (updates.email !== undefined) {
+        const emailCheck = validateEmailSpelling(updates.email);
+        if (!emailCheck.valid) {
+            return res.status(400).json({ error: emailCheck.error });
+        }
+        updates.email = normalizeText(updates.email);
+
+        const duplicateUser = await User.findOne({
+            email: updates.email,
+            _id: { $ne: req.params.userId },
+        }).lean();
+        if (duplicateUser) {
+            return res.status(409).json({
+                error: 'This email is already used by another account.',
+            });
+        }
+    }
+
     const user = await User.findById(req.params.userId);
 
     if (!user) {
@@ -606,6 +769,122 @@ exports.changeUserPassword = asyncHandler(async (req, res) => {
     res.json({ message: 'Password updated successfully.' });
 });
 
+// QUÊN MẬT KHẨU & ĐẶT LẠI MẬT KHẨU (FORGOT & RESET PASSWORD)
+exports.forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    if (!email || !String(email).trim()) {
+        return res.status(400).json({ error: 'Please provide your email address.' });
+    }
+
+    const emailCheck = validateEmailSpelling(email);
+    if (!emailCheck.valid) {
+        return res.status(400).json({ error: emailCheck.error });
+    }
+
+    const normalizedEmail = normalizeText(email);
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+        return res.status(404).json({ error: 'No account found with that email address.' });
+    }
+
+    // Tạo token ngẫu nhiên và băm SHA-256 để lưu vào DB (hiệu lực 15 phút)
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
+    await user.save();
+
+    const originUrl = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendBase = String(originUrl).replace(/\/$/, '');
+    const resetUrl = `${frontendBase}/reset-password/${rawToken}`;
+
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS;
+
+    if (!emailUser || !emailPass) {
+        return res.status(500).json({
+            error: 'Email service is not configured on the server (missing EMAIL_USER or EMAIL_PASSWORD).',
+        });
+    }
+
+    try {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: emailUser,
+                pass: emailPass,
+            },
+        });
+
+        await transporter.sendMail({
+            from: `"Learning Support Platform" <${emailUser}>`,
+            to: user.email,
+            subject: 'Password Reset Request - Learning Support',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; color: #0f172a;">
+                    <p style="margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: #0f766e; text-transform: uppercase;">Learning Support Platform</p>
+                    <h2 style="margin: 0 0 12px; color: #0f172a;">Reset Your Password</h2>
+                    <p style="color: #334155; line-height: 1.6;">Hi <strong>${user.name || 'Learner'}</strong>,</p>
+                    <p style="color: #334155; line-height: 1.6;">We received a request to reset the password for your account. Click the button below to choose a new password. This link will expire in <strong>15 minutes</strong>.</p>
+                    <div style="margin: 24px 0;">
+                        <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; border-radius: 999px; background: #0f766e; color: #ffffff; font-weight: 700; text-decoration: none;">Reset Password</a>
+                    </div>
+                    <p style="color: #64748b; font-size: 13px; line-height: 1.5;">Or copy and paste this link into your browser:<br><a href="${resetUrl}" style="color: #0f766e; word-break: break-all;">${resetUrl}</a></p>
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0;">If you did not request a password reset, you can safely ignore this email.</p>
+                </div>
+            `,
+        });
+
+        res.json({
+            message: 'A password reset link has been sent to your email address (valid for 15 minutes).',
+        });
+    } catch (mailError) {
+        user.resetPasswordToken = null;
+        user.resetPasswordExpires = null;
+        await user.save();
+        console.error('Nodemailer error:', mailError);
+        return res.status(500).json({
+            error: 'Failed to send reset email. Please try again later.',
+        });
+    }
+});
+
+exports.resetPassword = asyncHandler(async (req, res) => {
+    const { token } = req.params;
+    const { password, newPassword } = req.body;
+    const nextPassword = password || newPassword;
+
+    if (!token) {
+        return res.status(400).json({ error: 'Reset token is required.' });
+    }
+
+    if (typeof nextPassword !== 'string' || nextPassword.length < 8) {
+        return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(String(token)).digest('hex');
+
+    const user = await User.findOne({
+        resetPasswordToken: { $in: [hashedToken, String(token)] },
+        resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+        return res.status(400).json({ error: 'Password reset link is invalid or has expired (15 minutes limit).' });
+    }
+
+    user.password = await bcrypt.hash(nextPassword, 10);
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    res.json({
+        message: 'Your password has been reset successfully. You can now sign in with your new password.',
+    });
+});
+
 exports.listUsers = asyncHandler(async (_req, res) => {
     const users = await User.find().sort({ createdAt: -1 }).lean();
 
@@ -623,6 +902,11 @@ exports.createAdminManagedUser = asyncHandler(async (req, res) => {
 
     if (!name || !String(name).trim() || !email || !String(email).trim()) {
         return res.status(400).json({ error: 'Name and email are required.' });
+    }
+
+    const emailCheck = validateEmailSpelling(email);
+    if (!emailCheck.valid) {
+        return res.status(400).json({ error: emailCheck.error });
     }
 
     if (typeof password !== 'string' || password.length < 8) {
@@ -1442,42 +1726,137 @@ exports.listNotifications = asyncHandler(async (req, res) => {
     }
 
     const currentUser = await User.findById(userId).select('role').lean();
-    if (!currentUser || currentUser.role !== 'admin') {
-        return res.json([]);
+    if (!currentUser) {
+        return res.status(404).json({ error: 'User not found.' });
     }
 
-    // Dọn dẹp 3 thông báo mẫu cũ của học viên nếu còn tồn tại
-    await Notification.deleteMany({
-        user: userId,
-        title: { $in: ['AI Report', 'Study Reminder', 'System Update'] },
-    });
+    // 1. NẾU LÀ ADMIN: Chỉ nhận và xem thông báo về người dùng mới đăng nhập / đăng ký
+    if (currentUser.role === 'admin') {
+        await Notification.deleteMany({
+            user: userId,
+            title: { $in: ['AI Report', 'Study Reminder', 'System Update'] },
+        });
 
-    let notifications = await Notification.find({ user: userId }).sort({ createdAt: -1 }).limit(20).lean();
-
-    // Nếu chưa có thông báo đăng nhập nào, khởi tạo từ các user vừa đăng nhập gần nhất
-    if (notifications.length === 0) {
-        const recentUsers = await User.find({ lastLoginAt: { $ne: null } })
-            .sort({ lastLoginAt: -1 })
-            .limit(5)
+        let notifications = await Notification.find({ user: userId })
+            .sort({ createdAt: -1 })
+            .limit(20)
             .lean();
 
-        if (recentUsers.length > 0) {
-            const seedItems = recentUsers.map(u => {
-                const providerLabel = formatProviderLabel(u.authProvider);
-                const roleLabel = u.role === 'admin' ? 'Admin' : u.role === 'instructor' ? 'Instructor' : 'Learner';
-                return {
-                    user: userId,
-                    type: 'system',
-                    title: 'User Signed In',
-                    message: `${u.name || 'User'} (${u.email}) [${roleLabel}] signed in via ${providerLabel}.`,
-                    link: '/admin/users',
-                    isRead: false,
-                    createdAt: u.lastLoginAt || u.updatedAt || new Date(),
-                };
-            });
-            await Notification.insertMany(seedItems);
-            notifications = await Notification.find({ user: userId }).sort({ createdAt: -1 }).limit(20).lean();
+        if (notifications.length === 0) {
+            const recentUsers = await User.find({ lastLoginAt: { $ne: null } })
+                .sort({ lastLoginAt: -1 })
+                .limit(5)
+                .lean();
+
+            if (recentUsers.length > 0) {
+                const seedItems = recentUsers.map(u => {
+                    const providerLabel = formatProviderLabel(u.authProvider);
+                    const roleLabel =
+                        u.role === 'admin'
+                            ? 'Admin'
+                            : u.role === 'instructor'
+                              ? 'Instructor'
+                              : 'Learner';
+                    return {
+                        user: userId,
+                        type: 'system',
+                        title: 'User Signed In',
+                        message: `${u.name || 'User'} (${u.email}) [${roleLabel}] signed in via ${providerLabel}.`,
+                        link: '/admin/users',
+                        isRead: false,
+                        createdAt: u.lastLoginAt || u.updatedAt || new Date(),
+                    };
+                });
+                await Notification.insertMany(seedItems);
+                notifications = await Notification.find({ user: userId })
+                    .sort({ createdAt: -1 })
+                    .limit(20)
+                    .lean();
+            }
         }
+
+        return res.json(notifications);
+    }
+
+    // 2. NẾU LÀ INSTRUCTOR HOẶC LEARNER: Không bao giờ thấy thông báo đăng nhập của user khác,
+    //    nhưng vẫn có chuông thông báo học tập / giảng dạy riêng của mình
+    await Notification.deleteMany({
+        user: userId,
+        title: { $in: ['User Signed In', 'New User Registered & Signed In'] },
+    });
+
+    let notifications = await Notification.find({ user: userId })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean();
+
+    if (notifications.length === 0) {
+        const defaultItems =
+            currentUser.role === 'instructor'
+                ? [
+                      {
+                          user: userId,
+                          type: 'system',
+                          title: 'Instructor Workspace Ready',
+                          message:
+                              'You can create courses, organize modules, and edit interactive lessons in the Instructor Panel.',
+                          link: '/admin/courses',
+                          isRead: false,
+                      },
+                      {
+                          user: userId,
+                          type: 'ai_report',
+                          title: 'AI Mentor Active',
+                          message:
+                              'Learners can now use AI Code Review and practice quizzes in your published lessons.',
+                          link: '/courses',
+                          isRead: false,
+                      },
+                      {
+                          user: userId,
+                          type: 'reminder',
+                          title: 'Course Catalog',
+                          message:
+                              'Preview how your tutorials appear to students in the Course Catalog.',
+                          link: '/courses',
+                          isRead: false,
+                      },
+                  ]
+                : [
+                      {
+                          user: userId,
+                          type: 'ai_report',
+                          title: 'AI Report',
+                          message:
+                              'Your weekly learning summary from AI Mentor is ready to view!',
+                          link: '/profile/insights',
+                          isRead: false,
+                      },
+                      {
+                          user: userId,
+                          type: 'reminder',
+                          title: 'Study Reminder',
+                          message:
+                              'Keep your coding streak alive! Continue your HTML & CSS lessons today.',
+                          link: '/courses',
+                          isRead: false,
+                      },
+                      {
+                          user: userId,
+                          type: 'system',
+                          title: 'System Update',
+                          message:
+                              'Bookmark any lesson to save your progress and pick up right where you left off.',
+                          link: '/profile/courses',
+                          isRead: false,
+                      },
+                  ];
+
+        await Notification.insertMany(defaultItems);
+        notifications = await Notification.find({ user: userId })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .lean();
     }
 
     res.json(notifications);

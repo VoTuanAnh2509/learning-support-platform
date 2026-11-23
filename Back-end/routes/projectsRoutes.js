@@ -26,9 +26,12 @@ module.exports = app => {
     app.patch('/api/courses/:courseId/modules/:moduleId/lessons/:lessonId', controller.requireStaff, controller.updateLesson);
     app.delete('/api/courses/:courseId/modules/:moduleId/lessons/:lessonId', controller.requireStaff, controller.deleteLesson);
 
+    app.get('/api/users/check-email', controller.checkEmailAvailability);
     app.post('/api/users/register', controller.registerUser);
     app.post('/api/admin/bootstrap', controller.bootstrapAdminUser);
     app.post('/api/users/login', controller.loginUser);
+    app.post('/api/users/forgot-password', controller.forgotPassword);
+    app.post('/api/users/reset-password/:token', controller.resetPassword);
     app.get('/api/users/:userId/profile', controller.requireOwnAccount, controller.getUserProfile);
     app.patch('/api/users/:userId/profile', controller.requireOwnAccount, controller.updateUserProfile);
     app.patch('/api/users/:userId/password', controller.requireOwnAccount, controller.changeUserPassword);

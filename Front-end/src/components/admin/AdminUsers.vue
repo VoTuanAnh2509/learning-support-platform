@@ -3,6 +3,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Swal from 'sweetalert2'
 import api from '@/services/api'
+import { validateEmailSpelling } from '@/utils/emailValidator'
 
 const router = useRouter()
 
@@ -157,6 +158,11 @@ const closeAddModal = () => {
 
 const submitAddUser = async () => {
     addError.value = ''
+    const emailCheck = validateEmailSpelling(newUserForm.email)
+    if (!emailCheck.valid) {
+        addError.value = emailCheck.error
+        return
+    }
     if (newUserForm.password.length < 8) {
         addError.value = 'Password must be at least 8 characters.'
         return
