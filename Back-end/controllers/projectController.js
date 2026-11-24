@@ -1295,6 +1295,50 @@ exports.getProgress = asyncHandler(async (req, res) => {
     });
 });
 
+// Danh sách model ưu tiên: nếu model đầu bị 503/429/404 sẽ tự nhảy sang model tiếp theo
+const GEMINI_MODELS = [
+    'gemini-3.5-flash',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
+];
+
+async function generateWithFallback(prompt) {
+    let lastError = null;
+
+    for (const modelName of GEMINI_MODELS) {
+        try {
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(prompt);
+            return result.response.text();
+        } catch (error) {
+            lastError = error;
+            const status = error?.status || error?.response?.status;
+            const msg = String(error?.message || '').toLowerCase();
+            // Nếu lỗi quá tải (503), hết quota tạm thời (429), hoặc model không tồn tại (404) thì thử model tiếp theo
+            if (
+                status === 503 ||
+                status === 429 ||
+                status === 404 ||
+                msg.includes('503') ||
+                msg.includes('429') ||
+                msg.includes('404') ||
+                msg.includes('overloaded') ||
+                msg.includes('not found')
+            ) {
+                console.warn(
+                    `⚠️ Model ${modelName} gặp sự cố (${status || 'fallback'}), đang chuyển sang model dự phòng...`
+                );
+                continue;
+            }
+            // Nếu là lỗi khác (như sai API key 401/403) thì dừng luôn
+            throw error;
+        }
+    }
+
+    throw lastError;
+}
+
 exports.chatAssist = asyncHandler(async (req, res) => {
     const { userId, question, subject, lesson } = req.body;
 
@@ -1303,9 +1347,6 @@ exports.chatAssist = asyncHandler(async (req, res) => {
     }
 
     try {
-       
-        const model = genAI.getGenerativeModel({ model:   "gemini-3.5-flash"}); 
-
         // System Prompt: Định hướng tính cách và bối cảnh cho AI
         const prompt = `
             You are an expert IT Programming Mentor on a learning platform.
@@ -1322,9 +1363,8 @@ exports.chatAssist = asyncHandler(async (req, res) => {
             - Format your response nicely (markdown is supported on frontend if handled, otherwise use clear spacing).
         `;
 
-        // Gọi API Gemini
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+        // Gọi API Gemini thông qua cơ chế Fallback chống lỗi 503/429
+        const responseText = await generateWithFallback(prompt);
 
         // Lưu lịch sử tương tác vào DB (Giữ nguyên logic cũ của bạn)
         await AIInteraction.create({
@@ -1374,8 +1414,6 @@ exports.getRecommendations = asyncHandler(async (req, res) => {
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
-
         // 2. Thiết kế Prompt với Danh sách khóa học có sẵn (Catalog)
         const prompt = `
             You are an expert IT Programming Mentor. Recommend next courses and review topics for this specific student.
@@ -1404,8 +1442,7 @@ exports.getRecommendations = asyncHandler(async (req, res) => {
             }
         `;
 
-        const result = await model.generateContent(prompt);
-        let responseText = result.response.text();
+        let responseText = await generateWithFallback(prompt);
         
         // Dọn dẹp chuỗi JSON an toàn
         responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -1441,8 +1478,6 @@ exports.generateFeedback = asyncHandler(async (req, res) => {
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model:  "gemini-3.5-flash" });
-
         // Prompt được thiết kế chuyên biệt cho việc Review code tự do
         const prompt = `
             You are an expert IT Programming Mentor.
@@ -1461,8 +1496,7 @@ exports.generateFeedback = asyncHandler(async (req, res) => {
             - Keep your feedback concise, encouraging, and format it nicely in Markdown.
         `;
 
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
+        const feedbackText = await generateWithFallback(prompt);
 
         // Lưu lại lịch sử tương tác
         await AIInteraction.create({
@@ -1470,11 +1504,11 @@ exports.generateFeedback = asyncHandler(async (req, res) => {
             contextType: 'feedback',
             subject: subject || '',
             prompt: submittedAnswer || '',
-            response: responseText,
+            response: feedbackText,
             confidence: 0.9,
         });
 
-        res.json({ feedback: responseText });
+        return res.json({ feedback: feedbackText });
     } catch (error) {
         console.error("Gemini API Error (Feedback):", error);
         res.status(500).json({ feedback: "I'm having trouble analyzing your code right now. Please try again later." });
@@ -1517,8 +1551,6 @@ exports.generateSummary = asyncHandler(async (req, res) => {
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
-        
         // 3. Prompt ÉP Gemini phân tích và trả về ĐÚNG cấu trúc JSON
         const prompt = `
             You are an expert IT Programming Mentor. Analyze the following student data and provide a personalized weekly learning summary.
@@ -1541,8 +1573,7 @@ exports.generateSummary = asyncHandler(async (req, res) => {
             }
         `;
 
-        const result = await model.generateContent(prompt);
-        let responseText = result.response.text();
+        let responseText = await generateWithFallback(prompt);
         
         // 4. Dọn dẹp chuỗi trả về (Đề phòng Gemini cố tình thêm ```json ... ```)
         responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
