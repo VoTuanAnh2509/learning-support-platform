@@ -710,7 +710,7 @@ exports.getUserProfile = asyncHandler(async (req, res) => {
 
 exports.updateUserProfile = asyncHandler(async (req, res) => {
     const updates = {};
-    ['name', 'email', 'bio', 'goals', 'interests', 'proficiency'].forEach(field => {
+    ['name', 'email', 'bio', 'avatarUrl', 'avatarPreset', 'goals', 'interests', 'proficiency'].forEach(field => {
         if (req.body[field] !== undefined) updates[field] = req.body[field];
     });
 
@@ -767,6 +767,127 @@ exports.changeUserPassword = asyncHandler(async (req, res) => {
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
     res.json({ message: 'Password updated successfully.' });
+});
+
+// DANGER ZONE & DATA EXPORT HANDLERS
+exports.resetCourseProgress = asyncHandler(async (req, res) => {
+    const { userId, courseId } = req.params;
+    if (!mongoose.isValidObjectId(courseId)) {
+        return res.status(400).json({ error: 'Valid courseId is required.' });
+    }
+
+    const user = await User.findById(userId).populate('enrolledCourses.course');
+    if (!user) {
+        return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const enrollment = user.enrolledCourses.find(
+        entry => String(entry.course?._id || entry.course) === String(courseId)
+    );
+    if (!enrollment) {
+        return res.status(404).json({ error: 'You are not enrolled in this course.' });
+    }
+
+    enrollment.completedLessons = [];
+    enrollment.completionRate = 0;
+    enrollment.lastLessonId = null;
+    enrollment.lastLessonTitle = '';
+    enrollment.lastLessonSlug = '';
+    enrollment.lastAccessedAt = new Date();
+
+    await Promise.all([
+        user.save(),
+        ProgressEvent.deleteMany({ user: userId, course: courseId }),
+        PracticeSubmission.deleteMany({ user: userId, course: courseId }),
+    ]);
+
+    const safeUser = user.toObject();
+    delete safeUser.password;
+
+    res.json({
+        message: 'Course progress has been reset to 0%.',
+        user: safeUser,
+    });
+});
+
+exports.exportUserData = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const [user, submissions, progressEvents] = await Promise.all([
+        User.findById(userId).populate('enrolledCourses.course', 'title subject').lean(),
+        PracticeSubmission.find({ user: userId }).populate('course', 'title subject').sort({ createdAt: -1 }).lean(),
+        ProgressEvent.find({ user: userId }).populate('course', 'title subject').sort({ createdAt: -1 }).lean(),
+    ]);
+
+    if (!user) {
+        return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const safeUser = { ...user };
+    delete safeUser.password;
+    delete safeUser.resetPasswordToken;
+    delete safeUser.resetPasswordExpires;
+
+    res.json({
+        exportedAt: new Date().toISOString(),
+        platform: 'Learning Support Platform',
+        account: {
+            id: safeUser._id,
+            name: safeUser.name,
+            email: safeUser.email,
+            role: safeUser.role,
+            authProvider: safeUser.authProvider || 'local',
+            bio: safeUser.bio || '',
+            avatarUrl: safeUser.avatarUrl || '',
+            avatarPreset: safeUser.avatarPreset || '',
+            createdAt: safeUser.createdAt,
+            lastLoginAt: safeUser.lastLoginAt,
+        },
+        enrolledCourses: (safeUser.enrolledCourses || []).map(entry => ({
+            courseId: entry.course?._id || entry.course,
+            courseTitle: entry.course?.title || 'Course',
+            subject: entry.course?.subject || '',
+            completionRate: entry.completionRate || 0,
+            completedLessonsCount: (entry.completedLessons || []).length,
+            lastLessonTitle: entry.lastLessonTitle || '',
+            enrolledAt: entry.enrolledAt,
+            lastAccessedAt: entry.lastAccessedAt,
+        })),
+        bookmarkedLessons: safeUser.bookmarkedLessons || [],
+        quizAndPracticeSubmissions: submissions.map(sub => ({
+            courseTitle: sub.course?.title || 'Course',
+            questionType: sub.questionType,
+            submittedAnswer: sub.submittedAnswer,
+            score: sub.score,
+            isCorrect: sub.isCorrect,
+            createdAt: sub.createdAt,
+        })),
+        progressHistory: progressEvents.map(evt => ({
+            courseTitle: evt.course?.title || 'Course',
+            eventType: evt.eventType,
+            durationMinutes: evt.durationMinutes || 0,
+            createdAt: evt.createdAt,
+        })),
+    });
+});
+
+exports.deleteOwnAccount = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+        return res.status(404).json({ error: 'User not found.' });
+    }
+
+    await Promise.all([
+        ProgressEvent.deleteMany({ user: userId }),
+        PracticeSubmission.deleteMany({ user: userId }),
+        AIInteraction.deleteMany({ user: userId }),
+        Notification.deleteMany({ user: userId }),
+        User.findByIdAndDelete(userId),
+    ]);
+
+    res.json({
+        message: 'Your account and all learning data have been permanently deleted.',
+    });
 });
 
 // QUÊN MẬT KHẨU & ĐẶT LẠI MẬT KHẨU (FORGOT & RESET PASSWORD)

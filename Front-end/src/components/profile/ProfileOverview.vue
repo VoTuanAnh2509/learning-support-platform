@@ -1,8 +1,9 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Bar } from 'vue-chartjs'
 import { BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip } from 'chart.js'
 import ProfileCoursesSection from '@/components/profile/ProfileCoursesSection.vue'
+import { getAvatarPreset } from '@/utils/avatarPresets'
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 
@@ -31,6 +32,14 @@ const avatarInitials = computed(() =>
     .map(part => part.charAt(0))
     .join('')
     .toUpperCase()
+)
+const activePreset = computed(() => getAvatarPreset(props.profile?.avatarPreset))
+const avatarImgFailed = ref(false)
+watch(
+  () => props.profile?.avatarUrl,
+  () => {
+    avatarImgFailed.value = false
+  }
 )
 const progressSummary = computed(() => props.progress?.progressSummary || {})
 
@@ -77,7 +86,21 @@ const formatDate = value =>
   <div>
     <section class="profile-panel identity-panel">
       <div class="identity-main">
-        <div class="avatar" aria-hidden="true">{{ avatarInitials }}</div>
+        <div
+          class="avatar"
+          :style="{ background: activePreset?.bg || '#d8ed91' }"
+          aria-hidden="true"
+        >
+          <img
+            v-if="profile.avatarUrl && !avatarImgFailed"
+            :src="profile.avatarUrl"
+            alt="User avatar"
+            class="avatar-img"
+            @error="avatarImgFailed = true"
+          />
+          <span v-else-if="activePreset?.emoji" class="avatar-emoji">{{ activePreset.emoji }}</span>
+          <span v-else>{{ avatarInitials }}</span>
+        </div>
         <div class="identity-copy">
           <div class="identity-title-row">
             <h2>{{ displayName }}</h2>
@@ -233,6 +256,18 @@ const formatDate = value =>
   color: #315e47;
   font-size: 1.45rem;
   font-weight: 850;
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-emoji {
+  font-size: 2.3rem;
+  line-height: 1;
 }
 
 .identity-copy h2 {

@@ -29,6 +29,7 @@ if (clientID && clientSecret) {
                     return done(new Error('Google account did not provide an email address.'));
                 }
 
+                const oauthAvatar = profile.photos?.[0]?.value || '';
                 let user = await User.findOne({ email });
                 if (!user) {
                     const password = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
@@ -39,6 +40,7 @@ if (clientID && clientSecret) {
                             password,
                             role: 'learner',
                             authProvider: 'google',
+                            avatarUrl: oauthAvatar,
                         });
                     } catch (error) {
                         if (error.code !== 11000) throw error;
@@ -51,6 +53,9 @@ if (clientID && clientSecret) {
                 }
 
                 user.authProvider = 'google';
+                if (!user.avatarUrl && oauthAvatar) {
+                    user.avatarUrl = oauthAvatar;
+                }
                 user.lastLoginAt = new Date();
                 await user.save();
                 return done(null, user);
@@ -67,7 +72,7 @@ if (facebookAppID && facebookAppSecret) {
             clientID: facebookAppID,
             clientSecret: facebookAppSecret,
             callbackURL: process.env.FACEBOOK_CALLBACK_URL || `${backendUrl}/api/auth/facebook/callback`,
-            profileFields: ['id', 'displayName', 'emails'],
+            profileFields: ['id', 'displayName', 'emails', 'photos'],
         },
         async (_accessToken, _refreshToken, profile, done) => {
             try {
@@ -76,6 +81,7 @@ if (facebookAppID && facebookAppSecret) {
                     return done(new Error('Facebook account did not provide an email address.'));
                 }
 
+                const oauthAvatar = profile.photos?.[0]?.value || '';
                 let user = await User.findOne({ email });
                 if (!user) {
                     const password = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
@@ -86,6 +92,7 @@ if (facebookAppID && facebookAppSecret) {
                             password,
                             role: 'learner',
                             authProvider: 'facebook',
+                            avatarUrl: oauthAvatar,
                         });
                     } catch (error) {
                         if (error.code !== 11000) throw error;
@@ -98,6 +105,9 @@ if (facebookAppID && facebookAppSecret) {
                 }
 
                 user.authProvider = 'facebook';
+                if (!user.avatarUrl && oauthAvatar) {
+                    user.avatarUrl = oauthAvatar;
+                }
                 user.lastLoginAt = new Date();
                 await user.save();
                 return done(null, user);
@@ -123,6 +133,7 @@ if (githubClientID && githubClientSecret) {
                     return done(new Error('GitHub account did not provide an email address.'));
                 }
 
+                const oauthAvatar = profile.photos?.[0]?.value || '';
                 let user = await User.findOne({ email });
                 if (!user) {
                     const password = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
@@ -133,6 +144,7 @@ if (githubClientID && githubClientSecret) {
                             password,
                             role: 'learner',
                             authProvider: 'github',
+                            avatarUrl: oauthAvatar,
                         });
                     } catch (error) {
                         if (error.code !== 11000) throw error;
@@ -145,6 +157,9 @@ if (githubClientID && githubClientSecret) {
                 }
 
                 user.authProvider = 'github';
+                if (!user.avatarUrl && oauthAvatar) {
+                    user.avatarUrl = oauthAvatar;
+                }
                 user.lastLoginAt = new Date();
                 await user.save();
                 return done(null, user);

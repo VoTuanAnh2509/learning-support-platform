@@ -35,6 +35,9 @@ module.exports = app => {
     app.get('/api/users/:userId/profile', controller.requireOwnAccount, controller.getUserProfile);
     app.patch('/api/users/:userId/profile', controller.requireOwnAccount, controller.updateUserProfile);
     app.patch('/api/users/:userId/password', controller.requireOwnAccount, controller.changeUserPassword);
+    app.delete('/api/users/:userId/progress/:courseId', controller.requireOwnAccount, controller.resetCourseProgress);
+    app.get('/api/users/:userId/export', controller.requireOwnAccount, controller.exportUserData);
+    app.delete('/api/users/:userId/account', controller.requireOwnAccount, controller.deleteOwnAccount);
     app.post('/api/users/:userId/enroll/:courseId', controller.requireOwnAccount, controller.enrollCourse);
 
     app.get('/api/admin/users', controller.requireAdmin, controller.listUsers);

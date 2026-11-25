@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Swal from 'sweetalert2'
 import api from '@/services/api'
+import { getAvatarPreset } from '@/utils/avatarPresets'
 
 const router = useRouter()
 const route = useRoute()
@@ -118,6 +119,15 @@ const isAdmin = computed(() => authUser.value?.role === 'admin')
 const isInstructor = computed(() => authUser.value?.role === 'instructor')
 const isStaff = computed(() => ['admin', 'instructor'].includes(authUser.value?.role))
 const displayName = computed(() => authUser.value?.name || authUser.value?.username || 'Learner')
+const headerAvatarPreset = computed(() => getAvatarPreset(authUser.value?.avatarPreset))
+const headerAvatarFailed = ref(false)
+
+watch(
+  () => authUser.value?.avatarUrl,
+  () => {
+    headerAvatarFailed.value = false
+  }
+)
 
 const handleUserButtonClick = () => {
   if (isStaff.value) {
@@ -244,8 +254,23 @@ const handleLogout = async () => {
               :class="{ 'is-active': route.path.startsWith('/profile') || route.path.startsWith('/admin') }"
               @click="handleUserButtonClick"
             >
-              <span class="user-icon-badge" :class="{ 'admin-badge': isStaff }" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <span
+                class="user-icon-badge"
+                :class="{ 'admin-badge': isStaff }"
+                :style="headerAvatarPreset?.emoji && !authUser?.avatarUrl ? { background: headerAvatarPreset.bg } : {}"
+                aria-hidden="true"
+              >
+                <img
+                  v-if="authUser?.avatarUrl && !headerAvatarFailed"
+                  :src="authUser.avatarUrl"
+                  alt="Avatar"
+                  class="header-avatar-img"
+                  @error="headerAvatarFailed = true"
+                />
+                <span v-else-if="headerAvatarPreset?.emoji" class="header-avatar-emoji">
+                  {{ headerAvatarPreset.emoji }}
+                </span>
+                <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                   <circle cx="12" cy="7" r="4" />
                 </svg>
@@ -693,9 +718,19 @@ const handleLogout = async () => {
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 .user-icon-badge.admin-badge {
   background: linear-gradient(135deg, #0f766e, #0d9488);
+}
+.header-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.header-avatar-emoji {
+  font-size: 1.1rem;
+  line-height: 1;
 }
 .greeting {
   font-weight: 600;

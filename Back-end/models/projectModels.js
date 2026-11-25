@@ -130,6 +130,8 @@ const UserSchema = new Schema(
             enum: ['local', 'google', 'facebook', 'github'],
             default: 'local',
         },
+        avatarUrl: { type: String, default: '' },
+        avatarPreset: { type: String, default: '' },
         bio: { type: String, default: '' },
         goals: [{ type: String, trim: true }],
         interests: [{ type: String, trim: true }],
