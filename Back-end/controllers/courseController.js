@@ -93,7 +93,7 @@ const deleteModule = asyncHandler(async (req, res) => {
         return res.status(404).json({ error: 'Module not found.' });
     }
 
-    module.remove();
+    module.deleteOne();
     await course.save();
 
     res.json({ message: 'Module deleted successfully.' });
@@ -160,7 +160,7 @@ const deleteLesson = asyncHandler(async (req, res) => {
         return res.status(404).json({ error: 'Lesson not found.' });
     }
 
-    lesson.remove();
+    lesson.deleteOne();
     await course.save();
 
     res.json({ message: 'Lesson deleted successfully.' });

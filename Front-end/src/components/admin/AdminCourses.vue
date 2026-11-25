@@ -335,7 +335,18 @@ const handleDeleteLesson = async (courseId, moduleId, lessonId, lessonTitle) => 
                 
                 <ul class="lesson-list">
                   <li v-for="lesson in module.lessons" :key="lesson._id" class="lesson-item">
-                    <span class="lesson-item-title"><span class="lesson-bullet">•</span>{{ lesson.title }}</span>
+                    <div class="lesson-item-info">
+                      <span class="lesson-item-title"><span class="lesson-bullet">•</span>{{ lesson.title }}</span>
+                      <div class="lesson-meta-badges">
+                        <span v-if="lesson.videoUrl" class="lesson-meta-pill">📹 Video</span>
+                        <span v-if="lesson.codeExamples?.length" class="lesson-meta-pill code-pill">
+                          💻 {{ lesson.codeExamples.length }} Code {{ lesson.codeExamples.length === 1 ? 'Example' : 'Examples' }}
+                        </span>
+                        <span v-if="lesson.quizzes?.length" class="lesson-meta-pill quiz-pill">
+                          🎯 {{ lesson.quizzes.length }} {{ lesson.quizzes.length === 1 ? 'Quiz' : 'Quizzes' }}
+                        </span>
+                      </div>
+                    </div>
                     <div class="lesson-action-buttons">
                       <button class="action-btn btn-edit" @click="openEditModal(course._id, module._id, lesson)">Edit lesson</button>
                       <button class="text-delete" @click="handleDeleteLesson(course._id, module._id, lesson._id, lesson.title)">Delete</button>
@@ -415,6 +426,11 @@ const handleDeleteLesson = async (courseId, moduleId, lessonId, lessonTitle) => 
 .lesson-item:last-child { border-bottom: none; }
 .lesson-item .lesson-item-title { color: #cbd5e1; font-size: 0.78rem; font-weight: 500; }
 .lesson-bullet { margin-right: 0.5rem; color: #14b8a6; }
+.lesson-item-info { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; }
+.lesson-meta-badges { display: inline-flex; flex-wrap: wrap; gap: 0.35rem; }
+.lesson-meta-pill { padding: 0.14rem 0.5rem; border-radius: 999px; background: rgba(148, 163, 184, 0.14); color: #cbd5e1; font-size: 0.66rem; font-weight: 700; }
+.lesson-meta-pill.code-pill { background: rgba(16, 185, 129, 0.16); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+.lesson-meta-pill.quiz-pill { background: rgba(59, 130, 246, 0.16); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
 
 .action-btn { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.32rem 0.7rem; font-size: 0.92rem; border-radius: 8px; border: 1px solid transparent; cursor: pointer; font-weight: 700; transition: transform 120ms ease; }
 .action-btn:hover { transform: translateY(-1px); }
