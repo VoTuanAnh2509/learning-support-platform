@@ -6,6 +6,7 @@ module.exports = app => {
     });
 
     app.get('/api/search', controller.globalSearch);
+    app.get('/api/system/settings', controller.getSystemSettings);
     app.get('/api/notifications', controller.listNotifications);
     app.patch('/api/notifications/read-all', controller.markAllNotificationsRead);
     app.patch('/api/notifications/:id/read', controller.markNotificationRead);
@@ -43,6 +44,8 @@ module.exports = app => {
     app.get('/api/admin/users', controller.requireAdmin, controller.listUsers);
     app.post('/api/admin/users', controller.requireAdmin, controller.createAdminManagedUser);
     app.get('/api/admin/analytics', controller.requireAdmin, controller.getAdminAnalytics);
+    app.patch('/api/admin/settings', controller.requireAdmin, controller.updateSystemSettings);
+    app.post('/api/admin/settings/broadcast', controller.requireAdmin, controller.broadcastSystemAnnouncement);
     app.patch('/api/admin/users/:userId/role', controller.requireAdmin, controller.updateUserRole);
     app.delete('/api/admin/users/:userId', controller.requireAdmin, controller.deleteUser);
 

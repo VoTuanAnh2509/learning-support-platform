@@ -10,7 +10,10 @@ const {
     formatProviderLabel,
     validateEmailSpelling,
 } = require('../utils/helpers');
-const { notifyAdminsOfUserLogin } = require('./notificationController');
+const {
+    notifyAdminsOfUserLogin,
+    getOrCreateSystemSettings,
+} = require('./notificationController');
 
 const checkEmailAvailability = asyncHandler(async (req, res) => {
     const rawEmail = String(req.query.email || '').trim();
@@ -50,6 +53,13 @@ const checkEmailAvailability = asyncHandler(async (req, res) => {
 });
 
 const registerUser = asyncHandler(async (req, res) => {
+    const systemSettings = await getOrCreateSystemSettings();
+    if (!systemSettings.allowRegistration) {
+        return res.status(403).json({
+            error: 'New account registration is currently disabled by the system administrator.',
+        });
+    }
+
     const { name, email, password, bio, goals, interests, proficiency } = req.body;
 
     const emailCheck = validateEmailSpelling(email);
@@ -195,17 +205,28 @@ const ensureAdminExists = async () => {
 
 const loginUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-    const user = await User.findOne({ email: normalizeText(email) });
+    const normalizedEmail = normalizeText(email);
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
-        return res.status(401).json({ error: 'Invalid email or password.' });
+        return res.status(401).json({
+            error: `No account found with "${normalizedEmail}". Please check your email spelling or create a new account.`,
+            errorType: 'email_not_found',
+        });
     }
 
     const isMatch = isBcryptHash(user.password)
         ? await bcrypt.compare(password, user.password)
         : password === user.password;
     if (!isMatch) {
-        return res.status(401).json({ error: 'Invalid email or password.' });
+        const providerHint =
+            user.authProvider && user.authProvider !== 'local'
+                ? ` (Note: this account was linked with ${formatProviderLabel(user.authProvider)}).`
+                : '';
+        return res.status(401).json({
+            error: `Incorrect password for "${normalizedEmail}". Please try again or reset your password.${providerHint}`,
+            errorType: 'wrong_password',
+        });
     }
 
     if (!isBcryptHash(user.password)) {

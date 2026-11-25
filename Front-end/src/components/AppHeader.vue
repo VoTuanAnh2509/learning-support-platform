@@ -16,6 +16,22 @@ const notifications = ref([])
 const showNotificationMenu = ref(false)
 const notificationRef = ref(null)
 
+// === GLOBAL SYSTEM MAINTENANCE BANNER STATE ===
+const maintenanceMode = ref(false)
+const maintenanceMessage = ref('')
+
+const loadSystemBanner = async () => {
+  try {
+    const { data } = await api.get('/system/settings')
+    maintenanceMode.value = Boolean(data?.maintenanceMode)
+    maintenanceMessage.value =
+      data?.maintenanceMessage ||
+      'Scheduled maintenance is in progress. Some platform features may be temporarily limited.'
+  } catch (_err) {
+    // Bỏ qua nếu server chưa phản hồi
+  }
+}
+
 const unreadCount = computed(() => notifications.value.filter(item => !item.isRead).length)
 
 // Hàm lấy thông tin user từ SessionStorage
@@ -106,12 +122,15 @@ const handleClickOutside = event => {
 
 onMounted(() => {
   loadAuthUser()
+  loadSystemBanner()
   window.addEventListener('auth-changed', handleAuthChanged)
+  window.addEventListener('system-settings-changed', loadSystemBanner)
   document.addEventListener('click', handleClickOutside)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('auth-changed', handleAuthChanged)
+  window.removeEventListener('system-settings-changed', loadSystemBanner)
   document.removeEventListener('click', handleClickOutside)
 })
 
@@ -159,6 +178,10 @@ const handleLogout = async () => {
 
 <template>
   <header class="app-header">
+    <div v-if="maintenanceMode" class="maintenance-top-banner" role="status">
+      <span class="maint-badge">MAINTENANCE</span>
+      <span>⚠️ {{ maintenanceMessage }}</span>
+    </div>
     <div class="header-container">
       <!-- 1. LOGO -->
       <RouterLink to="/" class="brand-logo">
@@ -325,6 +348,29 @@ const handleLogout = async () => {
   position: sticky;
   top: 0;
   z-index: 50;
+}
+
+.maintenance-top-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 0.45rem 1rem;
+  background: linear-gradient(90deg, #b45309, #d97706);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.maint-badge {
+  padding: 0.12rem 0.5rem;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
 }
 
 .header-container {

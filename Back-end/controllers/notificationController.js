@@ -4,9 +4,121 @@ const {
     ProgressEvent,
     AIInteraction,
     Notification,
+    SystemSetting,
 } = require('../models/projectModels');
 const { asyncHandler, getUserIdFromToken } = require('../middlewares/authMiddleware');
 const { formatProviderLabel } = require('../utils/helpers');
+
+const VALID_AI_MODELS = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-2.0-flash',
+];
+
+const getOrCreateSystemSettings = async () => {
+    let settings = await SystemSetting.findOne({ key: 'global' });
+    if (!settings) {
+        settings = await SystemSetting.create({ key: 'global' });
+    }
+    return settings;
+};
+
+const getSystemSettings = asyncHandler(async (_req, res) => {
+    const settings = await getOrCreateSystemSettings();
+    res.json({
+        allowRegistration: Boolean(settings.allowRegistration),
+        aiTutorEnabled: Boolean(settings.aiTutorEnabled),
+        defaultAiModel: settings.defaultAiModel || 'gemini-2.5-flash',
+        maintenanceMode: Boolean(settings.maintenanceMode),
+        maintenanceMessage:
+            settings.maintenanceMessage ||
+            'Scheduled maintenance is in progress. Some platform features may be temporarily limited.',
+        updatedAt: settings.updatedAt,
+    });
+});
+
+const updateSystemSettings = asyncHandler(async (req, res) => {
+    const settings = await getOrCreateSystemSettings();
+    const {
+        allowRegistration,
+        aiTutorEnabled,
+        defaultAiModel,
+        maintenanceMode,
+        maintenanceMessage,
+    } = req.body;
+
+    if (typeof allowRegistration === 'boolean') {
+        settings.allowRegistration = allowRegistration;
+    }
+    if (typeof aiTutorEnabled === 'boolean') {
+        settings.aiTutorEnabled = aiTutorEnabled;
+    }
+    if (defaultAiModel && VALID_AI_MODELS.includes(defaultAiModel)) {
+        settings.defaultAiModel = defaultAiModel;
+    }
+    if (typeof maintenanceMode === 'boolean') {
+        settings.maintenanceMode = maintenanceMode;
+    }
+    if (typeof maintenanceMessage === 'string') {
+        settings.maintenanceMessage =
+            maintenanceMessage.trim() ||
+            'Scheduled maintenance is in progress. Some platform features may be temporarily limited.';
+    }
+    if (req.adminUser?._id) {
+        settings.updatedBy = req.adminUser._id;
+    }
+
+    await settings.save();
+
+    res.json({
+        message: 'System settings updated successfully.',
+        settings: {
+            allowRegistration: Boolean(settings.allowRegistration),
+            aiTutorEnabled: Boolean(settings.aiTutorEnabled),
+            defaultAiModel: settings.defaultAiModel,
+            maintenanceMode: Boolean(settings.maintenanceMode),
+            maintenanceMessage: settings.maintenanceMessage,
+            updatedAt: settings.updatedAt,
+        },
+    });
+});
+
+const broadcastSystemAnnouncement = asyncHandler(async (req, res) => {
+    const { title, message, targetRole = 'all' } = req.body;
+
+    if (!title || !String(title).trim() || !message || !String(message).trim()) {
+        return res
+            .status(400)
+            .json({ error: 'Announcement title and message are both required.' });
+    }
+
+    const filter =
+        targetRole && ['learner', 'instructor', 'admin'].includes(targetRole)
+            ? { role: targetRole }
+            : {};
+
+    const recipients = await User.find(filter).select('_id').lean();
+    if (!recipients.length) {
+        return res.status(404).json({ error: 'No matching users found to receive announcement.' });
+    }
+
+    const docs = recipients.map(u => ({
+        user: u._id,
+        type: 'system',
+        title: `📢 ${String(title).trim()}`,
+        message: String(message).trim(),
+        link: '/',
+        isRead: false,
+    }));
+
+    await Notification.insertMany(docs);
+
+    res.status(201).json({
+        message: `Broadcasted announcement to ${recipients.length} user(s).`,
+        recipientCount: recipients.length,
+    });
+});
 
 const notifyAdminsOfUserLogin = async (loggedInUser, actionType = 'login') => {
     try {
@@ -244,6 +356,10 @@ const getAdminAnalytics = asyncHandler(async (_req, res) => {
 });
 
 module.exports = {
+    getOrCreateSystemSettings,
+    getSystemSettings,
+    updateSystemSettings,
+    broadcastSystemAnnouncement,
     notifyAdminsOfUserLogin,
     listNotifications,
     markNotificationRead,

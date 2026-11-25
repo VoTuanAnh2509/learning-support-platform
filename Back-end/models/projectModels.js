@@ -218,12 +218,40 @@ const NotificationSchema = new Schema(
     { timestamps: true }
 );
 
+const SystemSettingSchema = new Schema(
+    {
+        key: { type: String, default: 'global', unique: true },
+        allowRegistration: { type: Boolean, default: true },
+        aiTutorEnabled: { type: Boolean, default: true },
+        defaultAiModel: {
+            type: String,
+            enum: [
+                'gemini-2.5-flash',
+                'gemini-2.5-flash-lite',
+                'gemini-3.5-flash',
+                'gemini-2.0-flash',
+            ],
+            default: 'gemini-2.5-flash',
+        },
+        maintenanceMode: { type: Boolean, default: false },
+        maintenanceMessage: {
+            type: String,
+            default:
+                'Scheduled maintenance is in progress. Some platform features may be temporarily limited.',
+            trim: true,
+        },
+        updatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    },
+    { timestamps: true }
+);
+
 const Course = mongoose.model('Course', CourseSchema);
 const User = mongoose.model('User', UserSchema);
 const PracticeSubmission = mongoose.model('PracticeSubmission', PracticeSubmissionSchema);
 const ProgressEvent = mongoose.model('ProgressEvent', ProgressEventSchema);
 const AIInteraction = mongoose.model('AIInteraction', AIInteractionSchema);
 const Notification = mongoose.model('Notification', NotificationSchema);
+const SystemSetting = mongoose.model('SystemSetting', SystemSettingSchema);
 
 module.exports = {
     Course,
@@ -232,4 +260,5 @@ module.exports = {
     ProgressEvent,
     AIInteraction,
     Notification,
+    SystemSetting,
 };

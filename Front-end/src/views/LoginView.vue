@@ -8,6 +8,8 @@ const router = useRouter()
 const route = useRoute()
 const loading = ref(false)
 const message = ref('')
+const isError = ref(false)
+const errorType = ref('')
 const showPassword = ref(false)
 const oauthBaseUrl = (api.defaults.baseURL || '').replace(/\/$/, '')
 
@@ -16,10 +18,20 @@ const form = reactive({
   password: '',
 })
 
+const clearErrorOnInput = field => {
+  if (errorType.value === field || errorType.value === 'general') {
+    message.value = ''
+    isError.value = false
+    errorType.value = ''
+  }
+}
+
 const finishSocialLogin = async () => {
   const token = route.query.token
   if (typeof token !== 'string') {
     if (route.query.error) {
+      isError.value = true
+      errorType.value = 'general'
       message.value = 'Social sign-in failed. Please try again.'
       router.replace('/login')
     }
@@ -40,6 +52,8 @@ const finishSocialLogin = async () => {
   } catch (_error) {
     sessionStorage.removeItem('auth_token')
     sessionStorage.removeItem('auth_user')
+    isError.value = true
+    errorType.value = 'general'
     message.value = 'Unable to complete social sign-in. Please try again.'
     await router.replace('/login')
   } finally {
@@ -52,6 +66,8 @@ onMounted(finishSocialLogin)
 const submitLogin = async () => {
   loading.value = true
   message.value = ''
+  isError.value = false
+  errorType.value = ''
 
   try {
     const { data } = await api.post('/users/login', form)
@@ -64,14 +80,17 @@ const submitLogin = async () => {
     sessionStorage.setItem('auth_user', JSON.stringify(data.user))
     sessionStorage.setItem('auth_token', data.token)
 
+    isError.value = false
     message.value = data.message || 'Login successful.'
     window.dispatchEvent(new Event('auth-changed'))
     await router.push(['admin', 'instructor'].includes(data.user.role) ? '/admin' : '/profile')
   } catch (error) {
+    isError.value = true
+    errorType.value = error?.response?.data?.errorType || 'general'
     message.value =
       error?.response?.data?.error ||
       error?.message ||
-      'Unable to sign in right now.'
+      'Unable to sign in right now. Please check your email and password.'
   } finally {
     loading.value = false
   }
@@ -90,9 +109,46 @@ const togglePasswordVisibility = () => {
       <p class="supporting-text">Access your learning dashboard, AI help, and personal progress.</p>
 
       <form class="auth-form" @submit.prevent="submitLogin">
+        <!-- KHUNG THÔNG BÁO LỖI / THÀNH CÔNG NỔI BẬT -->
+        <div
+          v-if="message"
+          class="auth-alert"
+          :class="isError ? 'auth-alert-error' : 'auth-alert-success'"
+          role="alert"
+        >
+          <div class="auth-alert-header">
+            <span class="auth-alert-icon" aria-hidden="true">{{ isError ? '⚠️' : '✓' }}</span>
+            <strong>
+              {{
+                !isError
+                  ? 'Sign-In Successful'
+                  : errorType === 'email_not_found'
+                    ? 'Email Not Found'
+                    : errorType === 'wrong_password'
+                      ? 'Incorrect Password'
+                      : 'Sign-In Failed'
+              }}
+            </strong>
+          </div>
+          <p class="auth-alert-text">{{ message }}</p>
+          <div v-if="isError && errorType === 'email_not_found'" class="auth-alert-action">
+            <RouterLink to="/register" class="alert-action-btn">Create a new account ➔</RouterLink>
+          </div>
+          <div v-else-if="isError && errorType === 'wrong_password'" class="auth-alert-action">
+            <RouterLink to="/forgot-password" class="alert-action-btn">Reset your password ➔</RouterLink>
+          </div>
+        </div>
+
         <label>
           <span>Email</span>
-          <input v-model="form.email" type="email" placeholder="you@example.com" required />
+          <input
+            v-model="form.email"
+            type="email"
+            placeholder="you@example.com"
+            :class="{ 'input-error': isError && errorType === 'email_not_found' }"
+            required
+            @input="clearErrorOnInput('email_not_found')"
+          />
         </label>
 
         <label>
@@ -102,7 +158,9 @@ const togglePasswordVisibility = () => {
               v-model="form.password"
               :type="showPassword ? 'text' : 'password'"
               placeholder="Enter your password"
+              :class="{ 'input-error': isError && errorType === 'wrong_password' }"
               required
+              @input="clearErrorOnInput('wrong_password')"
             />
             <button
               class="toggle-password"
@@ -137,8 +195,6 @@ const togglePasswordVisibility = () => {
             <img src="https://upload.wikimedia.org/wikipedia/commons/9/91/Octicons-mark-github.svg" alt="GitHub" />
           </a>
         </div>
-
-        <p v-if="message" class="message">{{ message }}</p>
       </form>
 
       <p class="helper-link">
@@ -287,9 +343,76 @@ input:focus {
   height: 24px;
 }
 
-.message {
+.auth-alert {
+  padding: 0.9rem 1.05rem;
+  border-radius: 16px;
+  font-size: 0.88rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  animation: shakeError 0.35s ease;
+}
+
+.auth-alert-error {
+  background: #fef2f2;
+  border: 1.5px solid #fca5a5;
+  color: #991b1b;
+  box-shadow: 0 8px 20px rgba(220, 38, 38, 0.08);
+}
+
+.auth-alert-success {
+  background: #ecfdf5;
+  border: 1.5px solid #6ee7b7;
+  color: #065f46;
+}
+
+.auth-alert-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+}
+
+.auth-alert-icon {
+  font-size: 1rem;
+}
+
+.auth-alert-text {
   margin: 0;
-  color: #0f172a;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.auth-alert-action {
+  margin-top: 0.25rem;
+}
+
+.alert-action-btn {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff !important;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.18s ease;
+}
+
+.alert-action-btn:hover {
+  background: #b91c1c;
+}
+
+.input-error {
+  border-color: #ef4444 !important;
+  background: #fff5f5 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
+}
+
+@keyframes shakeError {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
 }
 
 .helper-link {

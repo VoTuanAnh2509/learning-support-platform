@@ -32,7 +32,7 @@ watch(
   currentSection,
   section => {
     userRole.value = getCurrentUserRole()
-    if (!isAdmin.value && ['users', 'analytics'].includes(section)) {
+    if (!isAdmin.value && ['users', 'analytics', 'settings'].includes(section)) {
       router.replace('/admin/dashboard')
     }
   },
@@ -43,7 +43,7 @@ const sectionTitle = computed(() => ({
   courses: 'Courses',
   users: 'Users',
   analytics: 'Analytics',
-  settings: 'Settings'
+  settings: 'System Settings'
 }[currentSection.value] || 'Dashboard'))
 
 const sectionMarker = computed(() => ({
@@ -102,10 +102,10 @@ const logout = async () => {
         <RouterLink v-if="isAdmin" class="sidebar-link" :class="{ active: currentSection === 'analytics' }" to="/admin/analytics">
           <span>⌁</span> Analytics
         </RouterLink>
-        <RouterLink class="sidebar-link" :class="{ active: currentSection === 'settings' }" to="/admin/settings">
-          <span>◎</span> Settings
+        <RouterLink v-if="isAdmin" class="sidebar-link" :class="{ active: currentSection === 'settings' }" to="/admin/settings">
+          <span>◎</span> System Settings
         </RouterLink>
-        <RouterLink class="sidebar-link sidebar-switch-link" to="/profile/overview">
+        <RouterLink class="sidebar-link sidebar-switch-link" to="/profile/settings">
           <span>👤</span> My Profile
         </RouterLink>
       </nav>
@@ -140,8 +140,8 @@ const logout = async () => {
       <!-- KHU VỰC ANALYTICS (Đã chuyển sang component riêng) -->
       <AdminAnalytics v-if="currentSection === 'analytics' && isAdmin" />
 
-      <!-- KHU VỰC CÀI ĐẶT TÀI KHOẢN (Đã chuyển sang component riêng) -->
-      <AdminSettings v-if="currentSection === 'settings'" />
+      <!-- KHU VỰC CÀI ĐẶT HỆ THỐNG (Chỉ dành riêng cho Admin) -->
+      <AdminSettings v-if="currentSection === 'settings' && isAdmin" />
     </div>
 
     <LessonEditorModal :show="showEditor" :courseId="selectedCourseId" :moduleId="selectedModuleId"

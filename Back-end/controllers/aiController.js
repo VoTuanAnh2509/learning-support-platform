@@ -7,6 +7,7 @@ const {
     AIInteraction,
 } = require('../models/projectModels');
 const { asyncHandler } = require('../middlewares/authMiddleware');
+const { getOrCreateSystemSettings } = require('./notificationController');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -17,10 +18,13 @@ const GEMINI_MODELS = [
     'gemini-2.0-flash',
 ];
 
-async function generateWithFallback(prompt) {
+async function generateWithFallback(prompt, preferredModel = '') {
     let lastError = null;
+    const orderedModels = preferredModel
+        ? [preferredModel, ...GEMINI_MODELS.filter(m => m !== preferredModel)]
+        : GEMINI_MODELS;
 
-    for (const modelName of GEMINI_MODELS) {
+    for (const modelName of orderedModels) {
         try {
             const model = genAI.getGenerativeModel({ model: modelName });
             const result = await model.generateContent(prompt);
@@ -71,6 +75,13 @@ const deriveWeakAreas = submissions => {
 const chatAssist = asyncHandler(async (req, res) => {
     const { userId, question, subject, lesson } = req.body;
 
+    const systemSettings = await getOrCreateSystemSettings();
+    if (!systemSettings.aiTutorEnabled) {
+        return res.status(503).json({
+            answer: 'AI Tutor is currently disabled by the platform administrator. Please try again later.',
+        });
+    }
+
     if (!process.env.GEMINI_API_KEY) {
         return res
             .status(500)
@@ -93,7 +104,7 @@ const chatAssist = asyncHandler(async (req, res) => {
             - Format your response nicely (markdown is supported on frontend if handled, otherwise use clear spacing).
         `;
 
-        const responseText = await generateWithFallback(prompt);
+        const responseText = await generateWithFallback(prompt, systemSettings.defaultAiModel);
 
         await AIInteraction.create({
             user: userId || null,
@@ -137,7 +148,8 @@ const getRecommendations = asyncHandler(async (req, res) => {
         reviewSuggestions: [],
     };
 
-    if (!process.env.GEMINI_API_KEY) {
+    const systemSettings = await getOrCreateSystemSettings();
+    if (!process.env.GEMINI_API_KEY || !systemSettings.aiTutorEnabled) {
         return res.json(baseResult);
     }
 
@@ -169,7 +181,7 @@ const getRecommendations = asyncHandler(async (req, res) => {
             }
         `;
 
-        let responseText = await generateWithFallback(prompt);
+        let responseText = await generateWithFallback(prompt, systemSettings.defaultAiModel);
         responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         const aiRecommendations = JSON.parse(responseText);
 
@@ -193,6 +205,14 @@ const getRecommendations = asyncHandler(async (req, res) => {
 const generateFeedback = asyncHandler(async (req, res) => {
     const { userId, submittedAnswer, subject } = req.body;
 
+    const systemSettings = await getOrCreateSystemSettings();
+    if (!systemSettings.aiTutorEnabled) {
+        return res.status(503).json({
+            feedback:
+                'AI Code Review is currently disabled by the platform administrator. Please try again later.',
+        });
+    }
+
     if (!process.env.GEMINI_API_KEY) {
         return res.status(500).json({ feedback: 'System Error: Gemini API Key is missing.' });
     }
@@ -215,7 +235,7 @@ const generateFeedback = asyncHandler(async (req, res) => {
             - Keep your feedback concise, encouraging, and format it nicely in Markdown.
         `;
 
-        const feedbackText = await generateWithFallback(prompt);
+        const feedbackText = await generateWithFallback(prompt, systemSettings.defaultAiModel);
 
         await AIInteraction.create({
             user: userId || null,
@@ -268,7 +288,8 @@ const generateSummary = asyncHandler(async (req, res) => {
         nextActions: ['Complete one new coding challenge.'],
     };
 
-    if (!process.env.GEMINI_API_KEY) {
+    const systemSettings = await getOrCreateSystemSettings();
+    if (!process.env.GEMINI_API_KEY || !systemSettings.aiTutorEnabled) {
         return res.json(summaryResult);
     }
 
@@ -294,7 +315,7 @@ const generateSummary = asyncHandler(async (req, res) => {
             }
         `;
 
-        let responseText = await generateWithFallback(prompt);
+        let responseText = await generateWithFallback(prompt, systemSettings.defaultAiModel);
         responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         const aiAnalysis = JSON.parse(responseText);
 

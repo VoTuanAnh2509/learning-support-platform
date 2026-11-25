@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import api from '@/services/api'
@@ -7,10 +7,22 @@ import { validateEmailSpelling } from '@/utils/emailValidator'
 
 const router = useRouter()
 const loading = ref(false)
+const registrationAllowed = ref(true)
 const message = ref('')
 const isError = ref(false)
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
+
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/system/settings')
+    if (data && typeof data.allowRegistration === 'boolean') {
+      registrationAllowed.value = data.allowRegistration
+    }
+  } catch (_err) {
+    // Mặc định vẫn cho phép nếu chưa tải được
+  }
+})
 
 const form = reactive({
   name: '',
@@ -179,6 +191,11 @@ const toggleConfirmPasswordVisibility = () => {
       <h1>Register</h1>
       <p class="supporting-text">Create an account to track progress and receive personalized suggestions.</p>
 
+      <div v-if="!registrationAllowed" class="registration-closed-alert" role="alert">
+        <strong>🔒 Registration Temporarily Closed</strong>
+        <p>New account registration is currently disabled by the platform administrator. Existing users can still sign in below.</p>
+      </div>
+
       <form class="auth-form" autocomplete="off" @submit.prevent="submitRegister">
         <label>
           <span>Full name</span>
@@ -272,9 +289,9 @@ const toggleConfirmPasswordVisibility = () => {
         <button
           class="submit-button"
           type="submit"
-          :disabled="loading || !emailValidation.valid || emailDuplicateState.exists || emailDuplicateState.checking"
+          :disabled="loading || !registrationAllowed || !emailValidation.valid || emailDuplicateState.exists || emailDuplicateState.checking"
         >
-          {{ loading ? 'Creating account...' : 'Register' }}
+          {{ !registrationAllowed ? 'Registration Disabled' : loading ? 'Creating account...' : 'Register' }}
         </button>
 
         <p v-if="message" class="message" :class="{ 'error-message': isError }">{{ message }}</p>
@@ -322,6 +339,26 @@ h1 {
 .supporting-text {
   margin: 0.6rem 0 0;
   color: #475569;
+}
+
+.registration-closed-alert {
+  margin-top: 1.15rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 0.85rem;
+}
+
+.registration-closed-alert strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.registration-closed-alert p {
+  margin: 0;
+  line-height: 1.45;
 }
 
 .auth-form {
