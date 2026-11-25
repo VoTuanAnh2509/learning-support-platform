@@ -179,10 +179,10 @@ const toggleConfirmPasswordVisibility = () => {
       <h1>Register</h1>
       <p class="supporting-text">Create an account to track progress and receive personalized suggestions.</p>
 
-      <form class="auth-form" @submit.prevent="submitRegister">
+      <form class="auth-form" autocomplete="off" @submit.prevent="submitRegister">
         <label>
           <span>Full name</span>
-          <input v-model="form.name" type="text" placeholder="John Doe" required />
+          <input v-model="form.name" type="text" name="register_name" autocomplete="off" placeholder="John Doe" required />
         </label>
 
         <label>
@@ -190,6 +190,8 @@ const toggleConfirmPasswordVisibility = () => {
           <input
             v-model="form.email"
             type="email"
+            name="register_email"
+            autocomplete="off"
             placeholder="you@gmail.com"
             required
             @blur="form.email.trim() && checkEmailInDatabase(form.email)"
@@ -223,6 +225,8 @@ const toggleConfirmPasswordVisibility = () => {
             <input
               v-model="form.password"
               :type="showPassword ? 'text' : 'password'"
+              name="register_new_password"
+              autocomplete="new-password"
               placeholder="At least 8 characters"
               minlength="8"
               required
@@ -246,6 +250,8 @@ const toggleConfirmPasswordVisibility = () => {
             <input
               v-model="form.confirmPassword"
               :type="showConfirmPassword ? 'text' : 'password'"
+              name="register_confirm_password"
+              autocomplete="new-password"
               placeholder="Re-enter your password"
               minlength="8"
               required
